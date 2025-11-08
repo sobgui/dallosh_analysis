@@ -58,3 +58,8 @@ pnpm-lock.yaml
 docs/figma
 docs/project
 
+.next/
+out/
+build/
+dist/
+

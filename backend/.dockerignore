@@ -46,13 +46,6 @@ docs/
 *.md
 !README.md
 
-# TypeScript
-*.ts
-!*.d.ts
-tsconfig.json
-
-# Jest
-jest.config.js
 
 # Lock files (keep bun.lock for production)
 yarn.lock
