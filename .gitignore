@@ -20,6 +20,8 @@ storage/*
 docs/project
 _project
 models/*
+mongodb/
+rabbitmq/
 
 # Database data (MongoDB)
 mongodb/data/

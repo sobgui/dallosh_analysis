@@ -83,13 +83,14 @@ services:
       context: ./microservices/auto_processing_datasets
       dockerfile: Dockerfile
     image: dallosh_microservice_datasets:latest
-    # This service only builds the image, container exits immediately after build
-    command: ["sh", "-c", "echo 'Image built successfully' && exit 0"]
     restart: "no"
 
   # Celery Worker for Microservice
   microservice_celery_worker:
     image: dallosh_microservice_datasets:latest
+    build:
+      context: ./microservices/auto_processing_datasets
+      dockerfile: Dockerfile
     container_name: dallosh_celery_worker
     command: /bin/bash start_worker.sh
     env_file:
@@ -127,6 +128,9 @@ services:
   # Celery Event Listener for Microservice
   microservice_celery_listener:
     image: dallosh_microservice_datasets:latest
+    build:
+      context: ./microservices/auto_processing_datasets
+      dockerfile: Dockerfile
     container_name: dallosh_celery_listener
     command: python main.py
     env_file:
@@ -222,4 +226,3 @@ volumes:
 networks:
   dallosh_network:
     driver: bridge
-
