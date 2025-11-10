@@ -217,6 +217,85 @@ class TasksService {
   }
 
   /**
+   * Ensure global subscription exists and create it if needed
+   */
+  private ensureGlobalSubscription(): void {
+    if (this.subscriptions.has('event:global')) {
+      return;
+    }
+
+    const destination = `/exchange/${env.RABBITMQ_TOPIC_TASKS}/#`;
+    console.log(`[RabbitMQ] Creating global subscription to all events on exchange: ${env.RABBITMQ_TOPIC_TASKS}`);
+    
+    const subscription = this.client!.subscribe(destination, (message: IMessage) => {
+      try {
+        const content = message.body;
+        if (!content) {
+          console.warn('[RabbitMQ] Received empty message');
+          return;
+        }
+        
+        const parsedMessage: any = JSON.parse(content);
+        const messageFileId = parsedMessage.file_id;
+        
+        // Filter messages by file_id - only process if callbacks exist for this file
+        if (!messageFileId) {
+          console.warn('[RabbitMQ] Received message without file_id');
+          return;
+        }
+        
+        // Check if we have callbacks for this file_id or global callbacks
+        const hasFileCallbacks = this.eventCallbacks.has(messageFileId) && this.eventCallbacks.get(messageFileId)!.length > 0;
+        const hasGlobalCallbacks = this.eventCallbacks.has('*') && this.eventCallbacks.get('*')!.length > 0;
+        
+        if (!hasFileCallbacks && !hasGlobalCallbacks) {
+          // No callbacks registered for this file, skip processing
+          return;
+        }
+        
+        console.log(`[RabbitMQ] Received event for file ${messageFileId}:`, parsedMessage.event);
+
+        // Handle progression events
+        if (parsedMessage.event === TASK_EVENTS.SENDING_TO_LLM_PROGRESSION) {
+          // Map backend fields to frontend expected fields for compatibility
+          const progressionMessage: TaskProgressionEventMessage = {
+            file_id: parsedMessage.file_id,
+            event: parsedMessage.event,
+            batch: parsedMessage.batch,
+            total_batches: parsedMessage.total_batches,
+            batch_size: parsedMessage.batch_size,
+            total_rows: parsedMessage.total_rows,
+            rows_processed: parsedMessage.rows_processed,
+            rows_remaining: parsedMessage.rows_remaining,
+            progress_percentage: parsedMessage.progress_percentage,
+            current_row_index: parsedMessage.current_row_index,
+            current_row_end: parsedMessage.current_row_end,
+            model_uid: parsedMessage.model_uid,
+            fallback_used: parsedMessage.fallback_used,
+            // Legacy/compatibility fields
+            pagination: parsedMessage.batch || parsedMessage.pagination,
+            index: parsedMessage.batch || parsedMessage.index,
+            total: parsedMessage.total_batches || parsedMessage.total,
+          };
+          this.handleProgressionEvent(progressionMessage);
+        } else {
+          // Handle regular events
+          const eventMessage: TaskEventMessage = {
+            file_id: parsedMessage.file_id,
+            event: parsedMessage.event,
+          };
+          this.handleEvent(eventMessage);
+        }
+      } catch (error) {
+        console.error('[RabbitMQ] Error processing message:', error, message.body);
+      }
+    });
+
+    this.subscriptions.set('event:global', subscription);
+    console.log(`[RabbitMQ] Successfully created global subscription to exchange: ${env.RABBITMQ_TOPIC_TASKS}`);
+  }
+
+  /**
    * Listen to task events for a specific file
    */
   async onTaskEvent(fileId: string, callback: TaskEventCallback): Promise<void> {
@@ -232,64 +311,12 @@ class TasksService {
     }
     this.eventCallbacks.get(fileId)!.push(callback);
 
-    // Subscribe to exchange with routing key pattern
-    // STOMP destination format for topic exchange: /exchange/{exchange_name}/{routing_key}
-    // Routing key pattern: {fileId}.* matches all events for this file
-    const destination = `/exchange/${env.RABBITMQ_TOPIC_TASKS}/${fileId}.*`;
+    // IMPORTANT: RabbitMQ Web STOMP doesn't support .* wildcard patterns reliably
+    // Instead, subscribe to ALL messages (#) and filter by file_id on the client side
+    // Use a single global subscription for all files to avoid multiple subscriptions
+    this.ensureGlobalSubscription();
     
-    // Only subscribe if not already subscribed
-    if (!this.subscriptions.has(`event:${fileId}`)) {
-      console.log(`[RabbitMQ] Subscribing to events for file ${fileId} on destination: ${destination}`);
-      const subscription = this.client.subscribe(destination, (message: IMessage) => {
-        try {
-          const content = message.body;
-          if (!content) {
-            console.warn('[RabbitMQ] Received empty message');
-            return;
-          }
-          
-          const parsedMessage: any = JSON.parse(content);
-          console.log(`[RabbitMQ] Received event for file ${parsedMessage.file_id}:`, parsedMessage.event);
-
-          // Handle progression events
-          if (parsedMessage.event === TASK_EVENTS.SENDING_TO_LLM_PROGRESSION) {
-            // Map backend fields to frontend expected fields for compatibility
-            const progressionMessage: TaskProgressionEventMessage = {
-              file_id: parsedMessage.file_id,
-              event: parsedMessage.event,
-              batch: parsedMessage.batch,
-              total_batches: parsedMessage.total_batches,
-              batch_size: parsedMessage.batch_size,
-              total_rows: parsedMessage.total_rows,
-              rows_processed: parsedMessage.rows_processed,
-              rows_remaining: parsedMessage.rows_remaining,
-              progress_percentage: parsedMessage.progress_percentage,
-              current_row_index: parsedMessage.current_row_index,
-              current_row_end: parsedMessage.current_row_end,
-              model_uid: parsedMessage.model_uid,
-              fallback_used: parsedMessage.fallback_used,
-              // Legacy/compatibility fields
-              pagination: parsedMessage.batch || parsedMessage.pagination,
-              index: parsedMessage.batch || parsedMessage.index,
-              total: parsedMessage.total_batches || parsedMessage.total,
-            };
-            this.handleProgressionEvent(progressionMessage);
-          } else {
-            // Handle regular events
-            const eventMessage: TaskEventMessage = {
-              file_id: parsedMessage.file_id,
-              event: parsedMessage.event,
-            };
-            this.handleEvent(eventMessage);
-          }
-        } catch (error) {
-          console.error('[RabbitMQ] Error processing message:', error, message.body);
-        }
-      });
-
-      this.subscriptions.set(`event:${fileId}`, subscription);
-      console.log(`[RabbitMQ] Successfully subscribed to events for file ${fileId}`);
-    }
+    console.log(`[RabbitMQ] Registered callback for file ${fileId} (using global subscription)`);
   }
 
   /**
@@ -332,47 +359,10 @@ class TasksService {
     }
     this.eventCallbacks.get('*')!.push(callback);
 
-    // Subscribe to all events with wildcard routing key
-    if (!this.subscriptions.has('event:*')) {
-      const destination = `/exchange/${env.RABBITMQ_TOPIC_TASKS}/#`;
-      
-      const subscription = this.client.subscribe(destination, (message: IMessage) => {
-        try {
-          const content = message.body;
-          const parsedMessage: any = JSON.parse(content);
-
-          // Handle progression events
-          if (parsedMessage.event === TASK_EVENTS.SENDING_TO_LLM_PROGRESSION) {
-            // Map backend fields to frontend expected fields for compatibility
-            const progressionMessage: TaskProgressionEventMessage = {
-              file_id: parsedMessage.file_id,
-              event: parsedMessage.event,
-              batch: parsedMessage.batch,
-              total_batches: parsedMessage.total_batches,
-              batch_size: parsedMessage.batch_size,
-              model_uid: parsedMessage.model_uid,
-              fallback_used: parsedMessage.fallback_used,
-              // Legacy/compatibility fields
-              pagination: parsedMessage.batch || parsedMessage.pagination,
-              index: parsedMessage.batch || parsedMessage.index,
-              total: parsedMessage.total_batches || parsedMessage.total,
-            };
-            this.handleProgressionEvent(progressionMessage);
-          } else {
-            // Handle regular events
-            const eventMessage: TaskEventMessage = {
-              file_id: parsedMessage.file_id,
-              event: parsedMessage.event,
-            };
-            this.handleEvent(eventMessage);
-          }
-        } catch (error) {
-          console.error('Error processing RabbitMQ message:', error);
-        }
-      });
-
-      this.subscriptions.set('event:*', subscription);
-    }
+    // Ensure global subscription exists
+    this.ensureGlobalSubscription();
+    
+    console.log(`[RabbitMQ] Registered global callback (using global subscription)`);
   }
 
   /**
@@ -382,34 +372,37 @@ class TasksService {
     if (!callback) {
       // Remove all callbacks for this file
       this.eventCallbacks.delete(fileId);
-      // Unsubscribe from RabbitMQ
-      const subscriptionKey = `event:${fileId}`;
-      const subscription = this.subscriptions.get(subscriptionKey);
-      if (subscription) {
-        subscription.unsubscribe();
-        this.subscriptions.delete(subscriptionKey);
-        console.log(`[RabbitMQ] Unsubscribed from events for file ${fileId}`);
-      }
-      return;
-    }
-
-    // Remove specific callback
-    const callbacks = this.eventCallbacks.get(fileId);
-    if (callbacks) {
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
-      // If no more callbacks, unsubscribe
-      if (callbacks.length === 0) {
-        this.eventCallbacks.delete(fileId);
-        const subscriptionKey = `event:${fileId}`;
-        const subscription = this.subscriptions.get(subscriptionKey);
-        if (subscription) {
-          subscription.unsubscribe();
-          this.subscriptions.delete(subscriptionKey);
-          console.log(`[RabbitMQ] Unsubscribed from events for file ${fileId}`);
+      console.log(`[RabbitMQ] Removed all callbacks for file ${fileId}`);
+    } else {
+      // Remove specific callback
+      const callbacks = this.eventCallbacks.get(fileId);
+      if (callbacks) {
+        const index = callbacks.indexOf(callback);
+        if (index > -1) {
+          callbacks.splice(index, 1);
         }
+        // If no more callbacks for this file, remove the file entry
+        if (callbacks.length === 0) {
+          this.eventCallbacks.delete(fileId);
+          console.log(`[RabbitMQ] Removed callback for file ${fileId}`);
+        }
+      }
+    }
+    
+    // Check if we should unsubscribe from global subscription
+    // Only unsubscribe if there are no file-specific callbacks AND no global callbacks
+    const hasFileCallbacks = Array.from(this.eventCallbacks.keys()).some(
+      key => key !== '*' && this.eventCallbacks.get(key)!.length > 0
+    );
+    const hasGlobalCallbacks = this.eventCallbacks.has('*') && this.eventCallbacks.get('*')!.length > 0;
+    
+    if (!hasFileCallbacks && !hasGlobalCallbacks) {
+      // No more callbacks, unsubscribe from global subscription
+      const globalSubscription = this.subscriptions.get('event:global');
+      if (globalSubscription) {
+        globalSubscription.unsubscribe();
+        this.subscriptions.delete('event:global');
+        console.log(`[RabbitMQ] Unsubscribed from global event subscription (no more callbacks)`);
       }
     }
   }
