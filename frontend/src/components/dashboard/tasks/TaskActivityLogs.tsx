@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { CheckCircle2, Clock, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import type { TaskStatus } from "@/types";
 
 interface TaskEvent {
@@ -17,6 +18,16 @@ interface TaskActivityLogsProps {
   currentStatus: TaskStatus;
   fileId: string;
   events?: TaskEvent[];
+  llmProgression?: {
+    batch: number;
+    total_batches: number;
+    total_rows: number;
+    rows_processed: number;
+    progress_percentage: number;
+    current_row_index: number;
+    current_row_end: number;
+    model_uid?: string;
+  } | null;
 }
 
 interface ActivityStep {
@@ -77,7 +88,7 @@ const ACTIVITY_STEPS: ActivityStep[] = [
   },
 ];
 
-export function TaskActivityLogs({ currentStatus, fileId, events = [] }: TaskActivityLogsProps) {
+export function TaskActivityLogs({ currentStatus, fileId, events = [], llmProgression = null }: TaskActivityLogsProps) {
   // Map events by event name for quick lookup
   const eventsByStep = useMemo(() => {
     const map = new Map<string, TaskEvent>();
@@ -232,6 +243,37 @@ export function TaskActivityLogs({ currentStatus, fileId, events = [] }: TaskAct
                       {activity.label}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">{activity.description}</p>
+                    
+                    {/* Nested progress bar for LLM step */}
+                    {activity.step === "sending_to_llm" && status === "in-progress" && llmProgression && (
+                      <div className="mt-3 space-y-2 p-3 bg-muted/50 rounded-md border border-muted">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-foreground">
+                            Processing Batch {llmProgression.batch} of {llmProgression.total_batches}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {llmProgression.progress_percentage}%
+                          </span>
+                        </div>
+                        <Progress 
+                          value={llmProgression.progress_percentage} 
+                          className="h-2"
+                        />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>
+                            Rows {llmProgression.current_row_index}-{llmProgression.current_row_end} of {llmProgression.total_rows}
+                          </span>
+                          <span>
+                            {llmProgression.rows_processed} / {llmProgression.total_rows} rows processed
+                          </span>
+                        </div>
+                        {llmProgression.model_uid && (
+                          <div className="text-xs text-muted-foreground">
+                            Model: <span className="font-mono">{llmProgression.model_uid}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     {status === "completed" && timestamp && (

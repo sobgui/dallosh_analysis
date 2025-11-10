@@ -28,6 +28,7 @@ services:
     ports:
       - "5672:5672"   # AMQP port
       - "15672:15672" # Management UI port
+      - "15674:15674" # Web STOMP port (for browser WebSocket connections)
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin123
@@ -41,13 +42,16 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    command: >
+      sh -c "rabbitmq-plugins enable rabbitmq_web_stomp rabbitmq_web_stomp_examples &&
+             rabbitmq-server"
 
   # MongoDB Database
   mongodb:
-    image: mongo:7
+    image: mongo:4.4
     container_name: dallosh_mongodb
     ports:
-      - "27017:27017"
+      - "27019:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
@@ -57,11 +61,11 @@ services:
     networks:
       - dallosh_network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongo --quiet --eval 'db.adminCommand(\"ping\")' mongodb://admin:admin123@localhost:27017/admin?authSource=admin || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 40s
 
   # Ollama LLM Server
   ollama:
@@ -73,29 +77,45 @@ services:
       - ./models/ollama:/root/.ollama
     networks:
       - dallosh_network
+    entrypoint: ["/bin/sh", "-c"]
     command: >
-      sh -c "ollama serve & 
-             sleep 5 && 
-             ollama pull llama3.2:1b && 
-             wait"
+      "ollama serve &
+       sleep 10 &&
+       until ollama list > /dev/null 2>&1; do
+         echo 'Waiting for Ollama server to start...'
+         sleep 2
+       done &&
+       echo 'Ollama server is ready. Pulling llama3.2:1b model...' &&
+       ollama pull llama3.2:1b &&
+       echo 'Model pulled successfully. Keeping server running...' &&
+       wait"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
-  # Celery Worker for Microservice
-  microservice_celery_worker:
+  # Shared image for microservices (worker and listener use the same build)
+  microservice_datasets:
     build:
       context: ./microservices/auto_processing_datasets
       dockerfile: Dockerfile
+    image: dallosh_microservice_datasets:latest
+    # This service is not started directly, it's just used to build the image
+    profiles:
+      - build-only
+
+  # Celery Worker for Microservice
+  microservice_celery_worker:
+    image: dallosh_microservice_datasets:latest
     container_name: dallosh_celery_worker
-    command: celery -A src.celery_app:celery_app worker --loglevel=info --queues=celery_processing_queue --pool=solo --concurrency=1
+    command: /bin/bash start_worker.sh
     env_file:
-      - ./microservices/auto_processing_datasets/.env.production
+      - ./microservices/auto_processing_datasets/.env
     volumes:
-      - ./storage:/project/storage
+      - ./storage:/project/auto_processing_datasets/storage
+      - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
       rabbitmq:
@@ -107,18 +127,23 @@ services:
     networks:
       - dallosh_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -q '[c]elery.*worker' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # Celery Event Listener for Microservice
   microservice_celery_listener:
-    build:
-      context: ./microservices/auto_processing_datasets
-      dockerfile: Dockerfile
+    image: dallosh_microservice_datasets:latest
     container_name: dallosh_celery_listener
     command: python main.py
     env_file:
-      - ./microservices/auto_processing_datasets/.env.production
+      - ./microservices/auto_processing_datasets/.env
     volumes:
-      - ./storage:/project/storage
+      - ./storage:/project/auto_processing_datasets/storage
+      - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
       rabbitmq:
@@ -126,7 +151,7 @@ services:
       mongodb:
         condition: service_healthy
       microservice_celery_worker:
-        condition: service_started
+        condition: service_healthy
     networks:
       - dallosh_network
     restart: unless-stopped
@@ -142,10 +167,12 @@ services:
       - "traefik.http.routers.backend.rule=Host(`dallosh-analysis-server.agglomy.com`)"
       - "traefik.http.routers.backend.entrypoints=web"
       - "traefik.http.services.backend.loadbalancer.server.port=5006"
+    ports:
+      - "5006:5006"
     env_file:
-      - ./backend/.env.production
+      - ./backend/.env
     volumes:
-      - ./storage:/project/storage
+      - ./storage:/project/backend/storage
       - ./backend/logs:/project/backend/logs
     depends_on:
       mongodb:
@@ -173,6 +200,8 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`dallosh-analysis-client.agglomy.com`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.services.frontend.loadbalancer.server.port=3006"
+    ports:
+      - "3006:3006"
     env_file:
       - ./frontend/.env.production
     depends_on:

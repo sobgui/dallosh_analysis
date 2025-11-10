@@ -111,7 +111,7 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
           
           setLoading(false);
         },
-        error: (error) => {
+        error: (error: Error) => {
           console.error("CSV parsing error:", error);
           setLoading(false);
         },
@@ -537,7 +537,7 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                  label={(({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(1)}%`) as any}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -637,7 +637,7 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
                           const data = payload[0].payload;
                           const total = data.positive + data.neutral + data.negative;
                           const avgSentiment = total > 0 
-                            ? ((data.positive * 1 + data.neutral * 0 + data.negative * -1) / total).toFixed(2)
+                            ? (data.positive * 1 + data.neutral * 0 + data.negative * -1) / total
                             : 0;
                           return (
                             <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
@@ -645,7 +645,7 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
                               <p className="text-xs text-muted-foreground">User ID: {data.user_id}</p>
                               <p className="text-sm mt-2">Total Posts: {data.total}</p>
                               <p className="text-sm mt-1">
-                                <span className="font-medium">Avg Sentiment:</span> {avgSentiment > 0 ? '+' : ''}{avgSentiment}
+                                <span className="font-medium">Avg Sentiment:</span> {avgSentiment > 0 ? '+' : ''}{avgSentiment.toFixed(2)}
                               </p>
                               <div className="mt-2 space-y-1">
                                 <p className="text-xs">

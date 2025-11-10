@@ -9,11 +9,9 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 try:
-    from ollama import Client, ResponseError
+    import requests
 except ImportError:
-    # Fallback if ollama is not installed
-    Client = None
-    ResponseError = Exception
+    requests = None
 
 from src.configs.constants import (
     TASK_STATUS_SENDING_TO_LLM,
@@ -24,6 +22,47 @@ from src.configs.env import (
     DEFAULT_PAGINATE_ROWS_LIMIT, DEFAULT_RETRY_REQUESTS,
     MAX_PAGINATE_ROWS_LIMIT, MAX_RETRY_REQUESTS
 )
+
+
+def _is_external_model(model: dict, ai_config: dict) -> bool:
+    """
+    Check if a model is an external model.
+    
+    Args:
+        model: Model dictionary
+        ai_config: AI configuration dictionary
+    
+    Returns:
+        True if model is external, False otherwise
+    """
+    # Check mode first - if mode is external, definitely use external
+    preferences = ai_config.get('preferences', {})
+    mode = preferences.get('mode', 'local')
+    
+    if mode == 'external':
+        return True
+    
+    # Check if model is in external list
+    external_models = ai_config.get('external', [])
+    model_uid = model.get('uid')
+    
+    for ext_model in external_models:
+        if ext_model.get('uid') == model_uid:
+            return True
+    
+    # Also check baseUrl pattern - if it's not localhost/ollama, it's likely external
+    base_url = model.get('data', {}).get('baseUrl', '')
+    if base_url:
+        # If baseUrl contains OpenAI-compatible patterns or is not localhost, treat as external
+        if 'localhost' not in base_url.lower() and '127.0.0.1' not in base_url:
+            # Check for OpenAI-compatible endpoints
+            if '/openai' in base_url or '/chat/completions' in base_url or 'generativelanguage' in base_url:
+                return True
+            # If it's not the default Ollama port, likely external
+            if ':11434' not in base_url:
+                return True
+    
+    return False
 
 
 def _get_ai_model(ai_config: dict, tried_models: List[str] = None) -> Optional[dict]:
@@ -93,20 +132,28 @@ def _get_ai_model(ai_config: dict, tried_models: List[str] = None) -> Optional[d
     return None
 
 
-def _call_llm_api(model: dict, texts: List[str], retry_count: int = 0) -> dict:
+def _call_llm_api(model: dict, texts: List[str], ai_config: dict, retry_count: int = 0) -> dict:
     """
-    Call LLM API with retry logic using the official Ollama Python library.
+    Call LLM API using OpenAI-compatible chat completions format.
+    Uses POST method with JSON body as per OpenAI API standard.
+    Works for both external and local models (as long as they support OpenAI-compatible API).
     
     Args:
-        model: Model configuration dictionary
+        model: Model configuration dictionary (should have baseUrl set to OpenAI-compatible endpoint)
         texts: List of texts to analyze
+        ai_config: AI configuration dictionary (kept for compatibility, not used)
         retry_count: Current retry attempt
     
     Returns:
         Dictionary with analysis, priority, and topics arrays
+    
+    Note:
+        The baseUrl should be configured by the user to point to an OpenAI-compatible endpoint.
+        Example for Gemini: https://generativelanguage.googleapis.com/v1beta/openai
+        The function will automatically append /chat/completions to the baseUrl.
     """
-    if Client is None:
-        raise ImportError("Ollama Python library is not installed. Run: pip install ollama")
+    if requests is None:
+        raise ImportError("requests library is not installed. Run: pip install requests")
     
     base_url = model['data']['baseUrl']
     api_key = model['data'].get('apiKey', '')
@@ -137,97 +184,111 @@ Where:
 - priority array contains: 'high', 'normal', or 'low' for each post
 - topic array contains: the main topic/subject for each post"""
     
-    # Create Ollama client with custom host if needed
-    client_kwargs = {}
-    if base_url and base_url != 'http://localhost:11434':
-        client_kwargs['host'] = base_url
-    
-    # Add headers if API key is provided
-    headers = {}
+    # Prepare headers
+    headers = {
+        'Content-Type': 'application/json',
+    }
     if api_key:
         headers['Authorization'] = f'Bearer {api_key}'
-    if headers:
-        client_kwargs['headers'] = headers
+    
+    # Use the baseUrl as configured by the user
+    # Append /chat/completions for OpenAI-compatible APIs
+    endpoint = base_url.rstrip('/')
+    
+    # Ensure the endpoint ends with /chat/completions for OpenAI-compatible APIs
+    if not endpoint.endswith('/chat/completions'):
+        # If it ends with /openai, append /chat/completions
+        if endpoint.endswith('/openai'):
+            endpoint = f"{endpoint}/chat/completions"
+        # If it doesn't have /chat/completions at all, append it
+        elif '/chat/completions' not in endpoint:
+            endpoint = f"{endpoint}/chat/completions"
+    
+    print(f"LLM API endpoint: {endpoint}")
+    
+    # Prepare OpenAI-compatible request body
+    # Format: {"model": "...", "messages": [{"role": "user", "content": "..."}], "response_format": {"type": "json_object"}}
+    request_body = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "response_format": {"type": "json_object"}  # Request JSON format
+    }
     
     try:
-        client = Client(**client_kwargs) if client_kwargs else Client()
-        
-        # Use generate for text completion with JSON format
-        response = client.generate(
-            model=model_name,
-            prompt=prompt,
-            format="json",  # Force JSON output format
-            stream=False
+        # Use POST method for OpenAI-compatible APIs
+        response = requests.post(
+            endpoint,
+            json=request_body,  # Use json parameter to automatically set Content-Type and serialize
+            headers=headers,
+            timeout=300  # 5 minute timeout for LLM requests
         )
         
-        # Extract response - when format="json" is used, Ollama may return parsed JSON or JSON string
-        # Ollama library returns response that can be accessed as dict or object
-        response_data = None
-        if hasattr(response, 'response'):
-            response_data = response.response
-        elif isinstance(response, dict):
-            response_data = response.get('response', response)
-        elif isinstance(response, str):
-            response_data = response
-        else:
-            # Try to convert to string or get attribute
-            try:
-                response_data = str(response)
-            except:
-                response_data = getattr(response, 'response', None)
+        # Check response status
+        response.raise_for_status()
         
-        if not response_data:
-            raise ValueError("Empty response from LLM")
+        # Parse JSON response
+        response_data = response.json()
         
-        # Parse JSON from response (handle dict, list, and string formats)
+        # Handle OpenAI-compatible response format
+        # Expected format: {"choices": [{"message": {"content": "..."}}]}
         if isinstance(response_data, dict):
-            # Already parsed JSON dict
+            # Extract content from OpenAI-compatible response
+            if 'choices' in response_data and len(response_data['choices']) > 0:
+                content = response_data['choices'][0].get('message', {}).get('content', '')
+                if content:
+                    # Parse the JSON content from the message
+                    try:
+                        parsed_content = json.loads(content.strip())
+                        return parsed_content
+                    except json.JSONDecodeError:
+                        # Try to extract JSON from text if wrapped
+                        import re
+                        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                        if json_match:
+                            return json.loads(json_match.group())
+                        raise ValueError(f"Invalid JSON in response content: {content[:500]}")
+            # If not OpenAI format, return as-is (might be direct JSON response)
             return response_data
         elif isinstance(response_data, list):
-            # Already parsed JSON list - wrap it for consistency
-            print(f"Warning: LLM returned list directly: {type(response_data)}, length: {len(response_data)}")
-            return {'data': response_data} if response_data else {}
+            return {'data': response_data}
         elif isinstance(response_data, str):
-            # JSON string, parse it
+            # Try to parse JSON string
             try:
                 parsed = json.loads(response_data.strip())
-                # If parsed result is a list, wrap it
-                if isinstance(parsed, list):
-                    print(f"Warning: Parsed JSON is a list: length {len(parsed)}")
-                    return {'data': parsed} if parsed else {}
-                return parsed
-            except json.JSONDecodeError as e:
-                # Try to extract JSON from text if wrapped
+                return parsed if isinstance(parsed, dict) else {'data': parsed}
+            except json.JSONDecodeError:
+                # Try to extract JSON from text
                 import re
                 json_match = re.search(r'\{.*\}', response_data, re.DOTALL)
                 if json_match:
-                    try:
-                        parsed = json.loads(json_match.group())
-                        if isinstance(parsed, list):
-                            return {'data': parsed} if parsed else {}
-                        return parsed
-                    except json.JSONDecodeError:
-                        pass
-                # Log the actual response for debugging
-                print(f"JSON decode error: {e}")
-                print(f"Response data (first 500 chars): {response_data[:500]}")
-                raise ValueError(f"Invalid JSON response from LLM: {str(e)}")
+                    return json.loads(json_match.group())
+                raise ValueError(f"Invalid JSON response from external LLM: {response_data[:500]}")
         else:
-            # Unexpected type
-            raise ValueError(f"Unexpected response type: {type(response_data)}, value: {str(response_data)[:200]}")
+            raise ValueError(f"Unexpected response type: {type(response_data)}")
     
-    except ResponseError as e:
+    except requests.exceptions.RequestException as e:
         if retry_count < max_retries:
             print(f"LLM API call failed (attempt {retry_count + 1}/{max_retries}): {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_detail = e.response.json()
+                    print(f"Error response: {error_detail}")
+                except:
+                    print(f"Error response text: {e.response.text[:500]}")
             time.sleep(2 ** retry_count)  # Exponential backoff
-            return _call_llm_api(model, texts, retry_count + 1)
+            return _call_llm_api(model, texts, ai_config, retry_count + 1)
         else:
             raise Exception(f"LLM API call failed after {max_retries} retries: {e}")
     except Exception as e:
         if retry_count < max_retries:
             print(f"LLM API call failed (attempt {retry_count + 1}/{max_retries}): {e}")
             time.sleep(2 ** retry_count)  # Exponential backoff
-            return _call_llm_api(model, texts, retry_count + 1)
+            return _call_llm_api(model, texts, ai_config, retry_count + 1)
         else:
             raise Exception(f"LLM API call failed after {max_retries} retries: {e}")
 
@@ -288,7 +349,7 @@ def calling_llm(file_id: str, df, ai_config: dict, event_emitter: callable,
         print(f"Processing batch {i // paginate_limit + 1}/{num_batches} ({len(texts)} rows)")
         
         try:
-            result = _call_llm_api(model, texts)
+            result = _call_llm_api(model, texts, ai_config)
             
             # Log the result structure for debugging (first time only)
             if i == 0:
@@ -406,13 +467,25 @@ def calling_llm(file_id: str, df, ai_config: dict, event_emitter: callable,
             topics.extend(batch_topics[:batch_size])
             last_success_model = model_uid
 
+            # Calculate progress information
+            current_batch = (i // paginate_limit) + 1
+            rows_processed = min(i + batch_size, total_rows)
+            progress_percentage = int((rows_processed / total_rows) * 100) if total_rows > 0 else 0
+            
+            # Emit progression event with detailed information
             event_emitter(
                 file_id,
                 TASK_STATUS_SENDING_TO_LLM_PROGRESS,
                 {
-                    'batch': (i // paginate_limit) + 1,
+                    'batch': current_batch,
                     'total_batches': num_batches,
                     'batch_size': batch_size,
+                    'total_rows': total_rows,
+                    'rows_processed': rows_processed,
+                    'rows_remaining': max(0, total_rows - rows_processed),
+                    'progress_percentage': progress_percentage,
+                    'current_row_index': i + 1,  # 1-indexed starting row
+                    'current_row_end': rows_processed,  # Ending row index (inclusive)
                     'model_uid': model_uid,
                 }
             )
@@ -438,13 +511,25 @@ def calling_llm(file_id: str, df, ai_config: dict, event_emitter: callable,
                 topics.extend(['general'] * batch_size)
                 fallback_model = model_uid or 'default'
                 last_success_model = fallback_model
+                
+                # Calculate progress information for fallback
+                current_batch = (i // paginate_limit) + 1
+                rows_processed = min(i + batch_size, total_rows)
+                progress_percentage = int((rows_processed / total_rows) * 100) if total_rows > 0 else 0
+                
                 event_emitter(
                     file_id,
                     TASK_STATUS_SENDING_TO_LLM_PROGRESS,
                     {
-                        'batch': (i // paginate_limit) + 1,
+                        'batch': current_batch,
                         'total_batches': num_batches,
                         'batch_size': batch_size,
+                        'total_rows': total_rows,
+                        'rows_processed': rows_processed,
+                        'rows_remaining': max(0, total_rows - rows_processed),
+                        'progress_percentage': progress_percentage,
+                        'current_row_index': i + 1,
+                        'current_row_end': rows_processed,
                         'model_uid': fallback_model,
                         'fallback_used': True,
                     }

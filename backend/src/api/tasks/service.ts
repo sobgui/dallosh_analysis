@@ -67,11 +67,13 @@ export class TasksService extends BaseService {
 
     await this.db.insertOne(COLLECTIONS.TASKS, task);
 
-    if (taskData.file_id) {
-      await this.publishEvent(taskData.status || TASK_STATUS.ADDED, {
+    // Emit 'added' event to frontend as per project specification
+    // Event format: {file_id, file_path}
+    // Routing key format: {fileId}.{event} for frontend subscription
+    if (taskData.file_id && taskData.file_path) {
+      await this.publishEvent(`${taskData.file_id}.${TASK_STATUS.ADDED}`, {
         file_id: taskData.file_id,
         file_path: taskData.file_path,
-        status: taskData.status || TASK_STATUS.ADDED,
       });
     }
 
@@ -149,17 +151,12 @@ export class TasksService extends BaseService {
       task = await this.create(taskData, 'system');
     }
 
-    // Update task status to in_queue
+    // Update task status to in_queue in database
+    // The microservice will emit the in_queue event to the frontend after receiving proceed_task
     await this.update(task.uid, { status: TASK_STATUS.IN_QUEUE }, 'system');
 
-    // Emit in_queue event
-    await this.publishEvent(TASK_STATUS.IN_QUEUE, {
-      file_id: fileId,
-      file_path: filePath,
-      status: TASK_STATUS.IN_QUEUE,
-    });
-
-    // Publish proceed_task event for microservice
+    // Publish proceed_task control event to microservice
+    // Routing key: 'proceed_task' (control event for microservice listener)
     await this.publishEvent(RABBITMQ_EVENTS.PROCEED_TASK, {
       file_id: fileId,
       file_path: filePath,
@@ -235,12 +232,8 @@ export class TasksService extends BaseService {
       file_analysed: { path: null, type: null },
     }, 'system');
 
-    // Emit 'added' event
-    await this.publishEvent(TASK_STATUS.ADDED, {
-      file_id: fileId,
-      file_path: task.data.file_path,
-      status: TASK_STATUS.ADDED,
-    });
+    // Don't emit status events - only the microservice emits status events to the frontend
+    // If frontend needs immediate feedback, it can poll the task status or wait for microservice events
 
     return updatedTask;
   }

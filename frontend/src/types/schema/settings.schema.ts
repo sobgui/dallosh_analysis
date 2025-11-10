@@ -49,6 +49,10 @@ export interface StorageTarget {
     body: Record<string, any>;
     provider: string;
   };
+  createdAt: Date | string;
+  createdBy: string;
+  updatedAt: Date | string;
+  updatedBy: string;
 }
 
 export interface StorageConfig {

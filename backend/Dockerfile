@@ -34,13 +34,13 @@ COPY --from=prerelease /project/backend/package.json ./package.json
 # Create logs directory
 RUN mkdir -p logs
 
-# Run as non-root user
-USER bun
-
 # Expose port
-EXPOSE 3001/tcp
+EXPOSE 5006/tcp
 
 ENV NODE_ENV=production
+
+# Run as bun user
+USER bun
 
 # Start the application
 ENTRYPOINT [ "bun", "run", "dist/index.js" ]

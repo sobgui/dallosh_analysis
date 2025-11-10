@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Download, Play, RotateCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import type { File, Task, TaskStatus } from "@/types";
+import type { File, Task, TaskStatus, TaskEventCallback, TaskEventMessage, TaskProgressionEventMessage, TaskProgressionEventCallback } from "@/types";
+import { TASK_EVENTS } from "@/configs/constant";
 import { TaskActivityLogs } from "./TaskActivityLogs";
 
 interface TaskDetailProps {
@@ -48,17 +49,80 @@ export function TaskDetail({ file, onTaskDeleted }: TaskDetailProps) {
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<TaskEvent[]>([]);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const [hasShownDoneToast, setHasShownDoneToast] = useState(false);
+  const [llmProgression, setLlmProgression] = useState<{
+    batch: number;
+    total_batches: number;
+    total_rows: number;
+    rows_processed: number;
+    progress_percentage: number;
+    current_row_index: number;
+    current_row_end: number;
+    model_uid?: string;
+  } | null>(null);
+  const eventCallbackRef = useRef<TaskEventCallback | null>(null);
+  const progressionCallbackRef = useRef<any | null>(null);
 
   useEffect(() => {
-    loadTask();
-    setupEventSource();
+    let isMounted = true;
+    let pollInterval: NodeJS.Timeout | null = null;
+    let usePolling = false;
+    
+    const init = async () => {
+      await loadTask();
+      if (isMounted) {
+        try {
+          await setupRabbitMQListener();
+          // Successfully connected, clear any polling
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+          usePolling = false;
+        } catch (error: any) {
+          // If WebSocket connection fails, fall back to polling
+          const errorMessage = error?.message || "";
+          if (errorMessage.includes("WebSocket") || errorMessage.includes("connection")) {
+            console.warn("[TaskDetail] RabbitMQ connection failed, falling back to polling");
+            usePolling = true;
+            // Poll task status as fallback if WebSocket connection fails
+            if (!pollInterval) {
+              pollInterval = setInterval(() => {
+                if (isMounted && usePolling) {
+                  loadTask();
+                }
+              }, 5000); // Poll every 5 seconds
+            }
+          }
+        }
+      }
+    };
+    
+    init();
+    
     return () => {
-      // Cleanup EventSource
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      isMounted = false;
+      usePolling = false;
+      // Clear polling interval if set
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      // Cleanup RabbitMQ listener
+      if (file.uid) {
+        if (eventCallbackRef.current) {
+          tasksService.offTaskEvent(file.uid, eventCallbackRef.current);
+          eventCallbackRef.current = null;
+        } else {
+          // Fallback: unsubscribe all if callback ref is not set
+          tasksService.offTaskEvent(file.uid);
+        }
+        if (progressionCallbackRef.current) {
+          tasksService.offTaskProgression(file.uid, progressionCallbackRef.current);
+          progressionCallbackRef.current = null;
+        } else {
+          tasksService.offTaskProgression(file.uid);
+        }
       }
     };
   }, [file.uid]);
@@ -97,42 +161,39 @@ export function TaskDetail({ file, onTaskDeleted }: TaskDetailProps) {
     }
   };
 
-  const setupEventSource = () => {
-    // Close existing connection if any
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
-    // Create new EventSource connection to backend SSE endpoint
-    // Use backend API URL for SSE (backend handles RabbitMQ connection)
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const eventSource = new EventSource(
-      `${apiUrl}/api/tasks/events?fileId=${file.uid}`
-    );
-    eventSourceRef.current = eventSource;
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data: TaskEvent = JSON.parse(event.data);
-        
-        if (data.type === "connected") {
-          console.log("Connected to task events stream");
-          return;
-        }
-
-        if (data.type === "error") {
-          console.error("Event stream error:", data);
-          return;
-        }
-
-        if (data.type === "event" && data.file_id === file.uid) {
+  const setupRabbitMQListener = async () => {
+    try {
+      // Define event callback
+      const eventCallback: TaskEventCallback = (message: TaskEventMessage) => {
+        try {
+          // Verify this event is for the current file (defensive check)
+          if (message.file_id !== file.uid) {
+            console.warn(`[TaskDetail] Received event for different file. Expected: ${file.uid}, Got: ${message.file_id}`);
+            return;
+          }
+          
+          console.log(`[TaskDetail] Received RabbitMQ event for file ${file.uid}:`, message);
+          
           // Update status based on event name
-          const eventName = data.event as TaskStatus;
+          const eventName = message.event as TaskStatus;
           setCurrentStatus(eventName);
           updateProgress(eventName);
           
+          // Clear LLM progression when LLM step is done
+          if (eventName === TASK_EVENTS.SENDING_TO_LLM_DONE || eventName === TASK_EVENTS.DONE) {
+            setLlmProgression(null);
+          }
+          
           // Store event for activity logs
-          setEvents((prev) => [...prev, data]);
+          // Convert TaskEventMessage to TaskEvent format
+          const taskEvent: TaskEvent = {
+            type: "event",
+            file_id: message.file_id,
+            event: eventName,
+            timestamp: new Date().toISOString(),
+            data: message,
+          };
+          setEvents((prev) => [...prev, taskEvent]);
           
           // Show toast notification when task is done
           if (eventName === "done" && !hasShownDoneToast) {
@@ -166,21 +227,73 @@ export function TaskDetail({ file, onTaskDeleted }: TaskDetailProps) {
           setTimeout(() => {
             loadTask();
           }, 500);
+        } catch (error) {
+          console.error("[TaskDetail] Error handling RabbitMQ event:", error);
         }
-      } catch (error) {
-        console.error("Error parsing event:", error);
-      }
-    };
+      };
 
-    eventSource.onerror = (error) => {
-      console.error("EventSource error:", error);
-      // Try to reconnect after a delay
-      setTimeout(() => {
-        if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-          setupEventSource();
+      // Define progression callback for LLM progress tracking
+      const progressionCallback: TaskProgressionEventCallback = (message: TaskProgressionEventMessage) => {
+        try {
+          // Verify this event is for the current file
+          if (message.file_id !== file.uid) {
+            return;
+          }
+          
+          console.log(`[TaskDetail] Received LLM progression event for file ${file.uid}:`, message);
+          
+          // Update LLM progression state
+          if (message.batch && message.total_batches && message.total_rows !== undefined) {
+            setLlmProgression({
+              batch: message.batch,
+              total_batches: message.total_batches,
+              total_rows: message.total_rows || 0,
+              rows_processed: message.rows_processed || 0,
+              progress_percentage: message.progress_percentage || 0,
+              current_row_index: message.current_row_index || 0,
+              current_row_end: message.current_row_end || 0,
+              model_uid: message.model_uid,
+            });
+          }
+        } catch (error) {
+          console.error("[TaskDetail] Error handling progression event:", error);
         }
-      }, 3000);
-    };
+      };
+
+      // Store callback references for cleanup
+      eventCallbackRef.current = eventCallback;
+      progressionCallbackRef.current = progressionCallback;
+
+      // Subscribe to RabbitMQ events via STOMP
+      // This will attempt to connect if not already connected
+      await tasksService.onTaskEvent(file.uid, eventCallback);
+      
+      // Subscribe to progression events
+      await tasksService.onTaskProgression(file.uid, progressionCallback);
+      
+      console.log(`[TaskDetail] Successfully set up RabbitMQ listener for file ${file.uid}`);
+    } catch (error: any) {
+      console.error("[TaskDetail] Failed to set up RabbitMQ listener:", error);
+      const errorMessage = error?.message || "Unknown error";
+      
+      // Log helpful error message for connection issues
+      if (errorMessage.includes("WebSocket") || errorMessage.includes("connection")) {
+        console.warn(
+          "[TaskDetail] RabbitMQ connection issue. " +
+          "Make sure:\n" +
+          "1. RabbitMQ is running\n" +
+          "2. Web STOMP plugin is enabled: rabbitmq-plugins enable rabbitmq_web_stomp\n" +
+          "3. NEXT_PUBLIC_RABBITMQ_URL is set to ws://localhost:15674/ws (not wss:// and not port 15617)\n" +
+          "4. RabbitMQ Web STOMP is listening on port 15674\n" +
+          "5. Check browser console for the actual connection URL being used"
+        );
+        // Re-throw so the useEffect can handle fallback polling
+        throw error;
+      } else {
+        // For other errors, show toast but don't throw
+        toast.error(`Failed to connect to task events: ${errorMessage}`);
+      }
+    }
   };
 
   const updateProgress = (status: TaskStatus) => {
@@ -271,8 +384,6 @@ export function TaskDetail({ file, onTaskDeleted }: TaskDetailProps) {
                       file_id: file.uid,
                       file_path: file.data.file_path,
                       status: "added",
-                      file_cleaned: { path: null, type: null },
-                      file_analysed: { path: null, type: null },
                     });
                     await loadTask();
                     toast.success("Task created successfully");
@@ -355,16 +466,17 @@ export function TaskDetail({ file, onTaskDeleted }: TaskDetailProps) {
         </CardContent>
       </Card>
 
-      {/* Activity Logs */}
-      <Card>
-        <CardContent className="pt-6">
-          <TaskActivityLogs 
-            currentStatus={currentStatus} 
-            fileId={file.uid}
-            events={events}
-          />
-        </CardContent>
-      </Card>
+            {/* Activity Logs */}
+            <Card>
+              <CardContent className="pt-6">
+                <TaskActivityLogs 
+                  currentStatus={currentStatus} 
+                  fileId={file.uid}
+                  events={events}
+                  llmProgression={llmProgression}
+                />
+              </CardContent>
+            </Card>
 
       {/* Download Buttons */}
       {(task?.data.file_cleaned?.path || task?.data.file_analysed?.path) && (

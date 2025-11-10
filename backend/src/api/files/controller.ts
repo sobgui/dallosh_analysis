@@ -80,7 +80,6 @@ export class FilesController extends BaseController {
       }
 
       const fs = require('fs');
-      const path = require('path');
 
       // Check if file exists
       if (!fs.existsSync(fileInfo.filePath)) {

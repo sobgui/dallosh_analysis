@@ -12,6 +12,8 @@
 # vercel
 .vercel
 .backups
-storage
+storage/*
 docs/project
+_project
+models/*
 

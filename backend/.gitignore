@@ -33,11 +33,6 @@ logs/*.log
 *.log
 backend.log
 
-# Test files
-test/
-tests/
-*.test.ts
-*.spec.ts
 coverage/
 
 # Lock files
@@ -46,5 +41,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-storage/
+storage/*
+
+_project
 

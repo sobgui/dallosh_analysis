@@ -28,38 +28,73 @@ class MongoDatabase(BaseAdapter):
     def _build_connection_uri(self) -> str:
         """Build MongoDB connection URI."""
         if self.username and self.password:
-            return f"mongodb://{self.username}:{self.password}@{self.host}:{self.port}/{self.dbname}"
+            return f"mongodb://{self.username}:{self.password}@{self.host}:{self.port}/{self.dbname}?authSource=admin"
         else:
             return f"mongodb://{self.host}:{self.port}/{self.dbname}"
     
     def connect(self) -> None:
         """Connect to MongoDB."""
         try:
+            # Close existing connection if any
+            if self.client:
+                try:
+                    self.client.close()
+                except:
+                    pass
+            
             uri = self._build_connection_uri()
-            self.client = MongoClient(uri)
+            # Only pass authSource if credentials are provided
+            # PyMongo doesn't accept None for authSource
+            if self.username and self.password:
+                self.client = MongoClient(uri, authSource='admin', serverSelectionTimeoutMS=5000)
+            else:
+                self.client = MongoClient(uri, serverSelectionTimeoutMS=5000)
             self.db = self.client[self.dbname]
+            
+            # Test the connection
+            self.client.admin.command('ping')
             print(f"Connected to MongoDB: {self.host}:{self.port}/{self.dbname}")
         except Exception as error:
             print(f"MongoDB connection error: {error}")
+            self.client = None
+            self.db = None
             raise
+    
+    def is_connected(self) -> bool:
+        """Check if database is connected and connection is alive."""
+        try:
+            if self.client is None or self.db is None:
+                return False
+            # Ping the server to check if connection is alive
+            self.client.admin.command('ping')
+            return True
+        except Exception:
+            return False
+    
+    def ensure_connected(self) -> None:
+        """Ensure database is connected, reconnect if necessary."""
+        if not self.is_connected():
+            print("Database connection lost, reconnecting...")
+            self.connect()
     
     def disconnect(self) -> None:
         """Disconnect from MongoDB."""
         if self.client:
-            self.client.close()
+            try:
+                self.client.close()
+            except:
+                pass
             self.client = None
             self.db = None
             print("Disconnected from MongoDB")
     
     def find_one(self, collection: str, filter: dict) -> dict | None:
         """Find one document in a collection."""
-        if self.db is None:
-            raise Exception("Database not connected")
+        self.ensure_connected()
         return self.db[collection].find_one(filter)
     
     def update_one(self, collection: str, filter: dict, update: dict) -> None:
         """Update one document in a collection."""
-        if self.db is None:
-            raise Exception("Database not connected")
+        self.ensure_connected()
         self.db[collection].update_one(filter, {"$set": update})
 

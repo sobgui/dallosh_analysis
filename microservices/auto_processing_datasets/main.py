@@ -65,18 +65,31 @@ def main():
         logger.info(f"  - Cleaned: {STORAGE_CLEANED}")
         logger.info(f"  - Analysed: {STORAGE_ANALYSED}")
 
-        # Check if Celery worker is running
+        # Check if Celery worker is running (with retries for Docker startup)
         logger.info("Checking Celery worker status...")
         from src.utils.worker_check import check_celery_worker
-        worker_status = check_celery_worker()
-        if not worker_status['running']:
-            logger.warning("⚠ WARNING: No Celery workers detected!")
-            logger.warning("  Please start the worker in another terminal:")
-            logger.warning("  make worker")
-            logger.warning("  Or: celery -A src.celery_app worker --loglevel=info --queues=auto_processing_queue")
-        else:
-            logger.info(f"✓ Celery worker detected: {worker_status['workers']} worker(s) active")
-            logger.info(f"  Registered tasks: {', '.join(worker_status.get('tasks', []))}")
+        import time
+        
+        max_retries = 10
+        retry_delay = 3  # seconds
+        worker_status = None
+        
+        for attempt in range(max_retries):
+            worker_status = check_celery_worker()
+            if worker_status['running']:
+                logger.info(f"✓ Celery worker detected: {worker_status['workers']} worker(s) active")
+                if worker_status.get('tasks'):
+                    logger.info(f"  Registered tasks: {', '.join(worker_status.get('tasks', []))}")
+                break
+            else:
+                if attempt < max_retries - 1:
+                    logger.info(f"  Waiting for Celery worker to start... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                else:
+                    logger.warning("⚠ WARNING: No Celery workers detected after waiting!")
+                    logger.warning("  The worker may still be starting. Continuing anyway...")
+                    logger.warning("  If tasks fail, ensure the worker is running:")
+                    logger.warning("  docker compose logs microservice_celery_worker")
 
         # Initialize event listener (dispatches Celery tasks)
         logger.info("Connecting to RabbitMQ...")

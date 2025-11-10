@@ -7,7 +7,12 @@ export const env = {
   API_TIMEOUT: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000', 10),
 
   // RabbitMQ Configuration
-  RABBITMQ_URL: process.env.NEXT_PUBLIC_RABBITMQ_URL || 'amqp://localhost:5672',
+  // Web STOMP plugin runs on port 15674 (default)
+  // Use ws:// for local development, wss:// for production
+  // Credentials are optional - leave empty for anonymous connections if RabbitMQ allows it
+  RABBITMQ_URL: process.env.NEXT_PUBLIC_RABBITMQ_URL || 'ws://localhost:15674/ws',
+  RABBITMQ_USERNAME: process.env.NEXT_PUBLIC_RABBITMQ_USERNAME || '',
+  RABBITMQ_PASSWORD: process.env.NEXT_PUBLIC_RABBITMQ_PASSWORD || '',
   RABBITMQ_TOPIC_TASKS: process.env.NEXT_PUBLIC_RABBITMQ_TOPIC_TASKS || 'tasks',
 
   // Application Configuration

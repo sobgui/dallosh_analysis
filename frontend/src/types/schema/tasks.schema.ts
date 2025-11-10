@@ -76,9 +76,23 @@ export interface TaskEventMessage {
 }
 
 export interface TaskProgressionEventMessage extends TaskEventMessage {
-  pagination: number;
-  index: number;
-  total: number;
+  // Progression fields (from backend)
+  batch?: number;           // Current batch number (1-indexed)
+  total_batches?: number;   // Total number of batches
+  batch_size?: number;      // Size of current batch
+  total_rows?: number;      // Total number of rows in dataset
+  rows_processed?: number;  // Number of rows processed so far
+  rows_remaining?: number;  // Number of rows remaining
+  progress_percentage?: number; // Progress percentage (0-100)
+  current_row_index?: number;   // Current starting row index (1-indexed)
+  current_row_end?: number;     // Current ending row index (inclusive)
+  model_uid?: string;       // Model being used
+  fallback_used?: boolean;  // Whether fallback model was used
+  
+  // Legacy/compatibility fields (mapped from backend fields)
+  pagination?: number;      // Same as batch
+  index?: number;           // Same as batch (or calculated from batch)
+  total?: number;           // Same as total_batches
 }
 
 export type TaskEventCallback = (message: TaskEventMessage) => void;

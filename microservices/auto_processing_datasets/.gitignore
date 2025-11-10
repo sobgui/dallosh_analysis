@@ -48,3 +48,7 @@ celerybeat.pid
 
 docs/project
 
+storage/*
+
+_project
+

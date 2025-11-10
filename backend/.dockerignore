@@ -53,4 +53,5 @@ pnpm-lock.yaml
 package-lock.json
 
 docs/project
+storage/*
 

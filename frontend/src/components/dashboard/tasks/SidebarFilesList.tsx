@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Play, Search, Filter, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { File, Task } from "@/types";
+import type { File, Task, TaskStatus } from "@/types";
 import {
   Select,
   SelectContent,
@@ -132,8 +132,8 @@ export function SidebarFilesList({ onFileSelect, selectedFileId }: SidebarFilesL
   }
 
   // Get unique statuses for filter
-  const uniqueStatuses = Array.from(
-    new Set(tasks.map((t) => t.data.status).concat(["added", "no_task"]))
+  const uniqueStatuses: (TaskStatus | "no_task")[] = Array.from(
+    new Set([...tasks.map((t) => t.data.status), "added", "no_task"])
   );
 
   return (
@@ -234,7 +234,7 @@ export function SidebarFilesList({ onFileSelect, selectedFileId }: SidebarFilesL
                               ? "default"
                               : status === "on_error"
                               ? "destructive"
-                              : status === "processing" || status.includes("processing")
+                              : String(status).includes("processing")
                               ? "secondary"
                               : "outline"
                           }

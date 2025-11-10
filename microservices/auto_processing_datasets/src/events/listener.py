@@ -85,19 +85,26 @@ class EventListener:
             self.logger.info("Disconnected from RabbitMQ")
 
     def emit_event(self, file_id: str, event: str) -> None:
-        """Emit an event to RabbitMQ for frontend to listen."""
+        """Emit an event to RabbitMQ for frontend to listen.
+        
+        Routing key format: {file_id}.{event}
+        This matches the frontend subscription pattern: /exchange/tasks/{fileId}.*
+        """
         if not self.channel or self.channel.is_closed:
             return
 
         try:
             message = json.dumps({'file_id': file_id, 'event': event})
+            # Routing key format: {file_id}.{event} to match frontend subscription pattern
+            # Frontend subscribes to: /exchange/tasks/{fileId}.*
+            routing_key = f"{file_id}.{event}"
             self.channel.basic_publish(
                 exchange=RABBITMQ_TOPIC_TASKS,
-                routing_key=event,
+                routing_key=routing_key,
                 body=message,
                 properties=pika.BasicProperties(delivery_mode=2)  # Make message persistent
             )
-            self.logger.debug(f"Emitted event: {event} for file_id: {file_id}")
+            self.logger.info(f"Emitted event: {event} for file_id: {file_id} with routing_key: {routing_key}")
         except Exception as e:
             self.logger.error(f"Error emitting event: {e}", exc_info=True)
 
@@ -132,11 +139,10 @@ class EventListener:
 
         self.logger.info(f"Received proceed_task for file_id: {file_id}, file_path: {file_path}")
 
-        # Update database
+        # Update database to in_queue (processor will emit the event to avoid duplication)
         self.update_task_status(file_id, TASK_STATUS_IN_QUEUE)
-        self.emit_event(file_id, TASK_STATUS_IN_QUEUE)
 
-        # Dispatch Celery task
+        # Dispatch Celery task (processor will emit in_queue event and handle all subsequent events)
         try:
             task = process_dataset.delay(file_id, file_path, ai_config, TASK_STATUS_IN_QUEUE)
             self.active_tasks[file_id] = task.id

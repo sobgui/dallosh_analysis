@@ -35,9 +35,15 @@ export interface GeneralSettings {
   [key: string]: any;
 }
 
+export interface StorageConfig {
+  preferences?: Record<string, any>;
+  target?: string;
+}
+
 export interface SettingsData {
   general: GeneralSettings;
   ai: AIConfig;
+  storage?: StorageConfig;
 }
 
 export interface Settings {

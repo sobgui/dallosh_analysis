@@ -1,5 +1,5 @@
 import { BaseService } from '@common/services/BaseService';
-import { Settings, SettingsData } from '@/types/schema/settings.schema';
+import { Settings, SettingsData, StorageConfig } from '@/types/schema/settings.schema';
 import { generateUID } from '@utils';
 import { COLLECTIONS } from '@configs/constants';
 
@@ -89,7 +89,7 @@ export class SettingsService extends BaseService {
     return await this.getSettings();
   }
 
-  async updateStorage(storage: Partial<SettingsData['storage']>, updatedBy: string): Promise<Settings | null> {
+  async updateStorage(storage: Partial<StorageConfig>, updatedBy: string): Promise<Settings | null> {
     const existing = await this.getSettings();
     if (!existing) {
       throw new Error('Settings not found');

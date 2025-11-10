@@ -54,3 +54,5 @@ docs/project
 # Makefile (not needed in container)
 Makefile
 
+storage/*
+

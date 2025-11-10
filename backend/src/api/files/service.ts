@@ -53,7 +53,8 @@ export class FilesService extends BaseService {
     const fileName = `${fileId}${fileExtension}`;
     
     // Resolve storage path relative to backend directory, not current working directory
-    const backendDir = path.resolve(__dirname, '../..'); // Go up from src/api/files to backend root
+    // In compiled code, __dirname is /project/backend/dist/api/files, so we need to go up 3 levels
+    const backendDir = path.resolve(__dirname, '../../..'); // Go up from dist/api/files to backend root
     const storagePath = env.STORAGE_PATH.startsWith('/') || env.STORAGE_PATH.match(/^[A-Z]:/) 
       ? env.STORAGE_PATH // Absolute path
       : path.resolve(backendDir, env.STORAGE_PATH); // Relative to backend directory

@@ -15,8 +15,8 @@ export class MongoDatabase implements DatabaseAdapter {
     const { host, port, dbname, auth } = this.config;
 
     if (auth?.username && auth?.password) {
-      // Connection with authentication
-      return `mongodb://${encodeURIComponent(auth.username)}:${encodeURIComponent(auth.password)}@${host}:${port}/${dbname}`;
+      // Connection with authentication - use admin database for auth
+      return `mongodb://${encodeURIComponent(auth.username)}:${encodeURIComponent(auth.password)}@${host}:${port}/${dbname}?authSource=admin`;
     } else {
       // Connection without authentication
       return `mongodb://${host}:${port}/${dbname}`;
@@ -28,6 +28,7 @@ export class MongoDatabase implements DatabaseAdapter {
       const uri = this.buildConnectionUri();
       const options: MongoClientOptions = {
         ...this.config.options,
+        authSource: this.config.auth ? 'admin' : undefined,
       };
 
       this.client = new MongoClient(uri, options);
