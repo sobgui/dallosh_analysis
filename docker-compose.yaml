@@ -83,11 +83,6 @@ services:
       context: ./microservices/auto_processing_datasets
       dockerfile: Dockerfile
     image: dallosh_microservice_datasets:latest
-    # This service is not started directly, it's just used to build the image
-    profiles:
-      - build-only
-    # Prevent the container from starting, but allow the image to be built
-    command: ["echo", "Image built successfully"]
     restart: "no"
 
   # Celery Worker for Microservice
@@ -100,11 +95,20 @@ services:
     command: /bin/bash start_worker.sh
     env_file:
       - ./microservices/auto_processing_datasets/.env
+    environment:
+      # Override DB_PORT to use internal Docker network port (27017) instead of host port (27019)
+      DB_PORT: 27017
+      DB_HOST: mongodb
+      # Override DB_USER to match MongoDB root credentials (admin, not admin123)
+      DB_USER: admin
+      DB_PASSWORD: admin123
     volumes:
       - ./storage:/project/auto_processing_datasets/storage
       - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
+      microservice_datasets:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
       mongodb:
@@ -131,11 +135,20 @@ services:
     command: python main.py
     env_file:
       - ./microservices/auto_processing_datasets/.env
+    environment:
+      # Override DB_PORT to use internal Docker network port (27017) instead of host port (27019)
+      DB_PORT: 27017
+      DB_HOST: mongodb
+      # Override DB_USER to match MongoDB root credentials (admin, not admin123)
+      DB_USER: admin
+      DB_PASSWORD: admin123
     volumes:
       - ./storage:/project/auto_processing_datasets/storage
       - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
+      microservice_datasets:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
       mongodb:
@@ -156,6 +169,13 @@ services:
       - "5006:5006"
     env_file:
       - ./backend/.env
+    environment:
+      # Override DB_PORT to use internal Docker network port (27017) instead of host port (27019)
+      DB_PORT: 27017
+      DB_HOST: mongodb
+      # Override DB_USER to match MongoDB root credentials (admin, not admin123)
+      DB_USER: admin
+      DB_PASSWORD: admin123
     volumes:
       - ./storage:/project/backend/storage
       - ./backend/logs:/project/backend/logs

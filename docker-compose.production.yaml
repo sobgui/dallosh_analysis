@@ -1,25 +1,6 @@
-# Production deployment
+# Local deployment
 
 services:
-  # Traefik Reverse Proxy
-  traefik:
-    image: traefik:v3.5
-    container_name: traefik
-    command:
-      - "--api.insecure=true"                          # Enables web dashboard (optional, use in dev only)
-      - "--providers.docker=true"                      # Enable Docker provider for service discovery
-      - "--providers.docker.exposedbydefault=false"   # Only expose containers with traefik.enable=true label
-      - "--entrypoints.web.address=:8080"              # Listen on port 8080 to avoid conflict with app panel on port 80
-      - "--log.level=INFO"
-    ports:
-      - "8080:8080"     # Traefik dashboard (optional)
-      # Notice no 80:80 binding - your other panel uses port 80
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    networks:
-      - dallosh_network
-    restart: unless-stopped
-
   # RabbitMQ Message Broker
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -162,11 +143,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: dallosh_backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`dallosh-analysis-server.agglomy.com`)"
-      - "traefik.http.routers.backend.entrypoints=web"
-      - "traefik.http.services.backend.loadbalancer.server.port=5006"
     ports:
       - "5006:5006"
     env_file:
@@ -195,11 +171,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: dallosh_frontend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`dallosh-analysis-client.agglomy.com`)"
-      - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3006"
     ports:
       - "3006:3006"
     env_file:
@@ -226,4 +197,3 @@ volumes:
 networks:
   dallosh_network:
     driver: bridge
-
