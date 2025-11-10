@@ -86,10 +86,16 @@ services:
     # This service is not started directly, it's just used to build the image
     profiles:
       - build-only
+    # Prevent the container from starting, but allow the image to be built
+    command: ["echo", "Image built successfully"]
+    restart: "no"
 
   # Celery Worker for Microservice
   microservice_celery_worker:
     image: dallosh_microservice_datasets:latest
+    build:
+      context: ./microservices/auto_processing_datasets
+      dockerfile: Dockerfile
     container_name: dallosh_celery_worker
     command: /bin/bash start_worker.sh
     env_file:
@@ -118,6 +124,9 @@ services:
   # Celery Event Listener for Microservice
   microservice_celery_listener:
     image: dallosh_microservice_datasets:latest
+    build:
+      context: ./microservices/auto_processing_datasets
+      dockerfile: Dockerfile
     container_name: dallosh_celery_listener
     command: python main.py
     env_file:
@@ -197,4 +206,3 @@ volumes:
 networks:
   dallosh_network:
     driver: bridge
-
