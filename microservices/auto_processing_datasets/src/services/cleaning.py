@@ -106,24 +106,31 @@ def cleaning(file_id: str, df: pd.DataFrame, event_emitter: callable, db_adapter
     # Save cleaned dataset
     ensure_directory_exists(STORAGE_CLEANED)
     cleaned_path = os.path.join(STORAGE_CLEANED, f"{file_id}.csv")
-    # Ensure we use absolute path
+    # Ensure we use absolute path for file operations
     cleaned_path = os.path.abspath(cleaned_path)
     df.to_csv(cleaned_path, index=False)
     print(f"Saved cleaned dataset to: {cleaned_path}")
 
     # Persist metadata back to task document if database adapter is provided
+    # Store relative path (e.g., "cleaned/{file_id}.csv") so it works across different container mount points
+    # Both backend and microservice can resolve this relative to their own storage paths
     if db_adapter is not None:
         try:
+            # Store relative path for cross-container compatibility
+            # Extract relative path from storage root (e.g., "cleaned/{file_id}.csv")
+            relative_path = os.path.join('cleaned', f"{file_id}.csv")
+            
             db_adapter.update_one(
                 'tasks',
                 {'data.file_id': file_id},
                 {
-                    'data.file_cleaned.path': cleaned_path,
+                    'data.file_cleaned.path': relative_path,
                     'data.file_cleaned.type': 'text/csv',
                     'updatedAt': datetime.utcnow(),
                     'updatedBy': 'system',
                 }
             )
+            print(f"Updated task with cleaned file path (relative): {relative_path}")
         except Exception as exc:
             print(f"Warning: failed to update task with cleaned file path: {exc}")
     

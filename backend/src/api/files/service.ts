@@ -147,6 +147,59 @@ export class FilesService extends BaseService {
     return (await this.db.findOne(COLLECTIONS.FILES, { uid })) as File | null;
   }
 
+  /**
+   * Get storage path resolved for backend container
+   * This ensures we use the correct path regardless of how it's stored in the database
+   */
+  private getStoragePath(): string {
+    const backendDir = path.resolve(__dirname, '../../..'); // Go up from dist/api/files to backend root
+    return env.STORAGE_PATH.startsWith('/') || env.STORAGE_PATH.match(/^[A-Z]:/) 
+      ? env.STORAGE_PATH // Absolute path
+      : path.resolve(backendDir, env.STORAGE_PATH); // Relative to backend directory
+  }
+
+  /**
+   * Resolve file path for cleaned/analysed files
+   * Handles both relative paths (e.g., "cleaned/{file_id}.csv") and absolute paths for backward compatibility
+   * Since both backend and microservice share the same volume but use different mount points,
+   * we prefer relative paths stored in DB, but construct path from file_id as fallback
+   */
+  private resolveProcessedFilePath(fileId: string, source: 'cleaned' | 'analysed', storedPath?: string | null): string {
+    const storagePath = this.getStoragePath();
+    
+    // Default constructed path: {storagePath}/{source}/{fileId}.csv
+    const constructedPath = path.join(storagePath, source, `${fileId}.csv`);
+    
+    if (!storedPath) {
+      // No stored path, use constructed path
+      return constructedPath;
+    }
+    
+    // Check if storedPath is already a relative path (new format)
+    // Relative paths look like: "cleaned/{file_id}.csv" or "analysed/{file_id}.csv"
+    if (!path.isAbsolute(storedPath)) {
+      // It's a relative path, resolve it against storage path
+      const resolvedPath = path.join(storagePath, storedPath);
+      return resolvedPath;
+    }
+    
+    // Stored path is absolute (old format from microservice)
+    // Extract relative path from absolute path for cross-container compatibility
+    // e.g., /project/auto_processing_datasets/storage/cleaned/{file_id}.csv -> cleaned/{file_id}.csv
+    // e.g., /project/backend/storage/cleaned/{file_id}.csv -> cleaned/{file_id}.csv
+    const storageMatch = storedPath.match(/[/\\](cleaned|analysed|datasets)[/\\]/);
+    if (storageMatch) {
+      const storageDir = storageMatch[1];
+      const fileName = path.basename(storedPath);
+      // Construct path using backend's storage path
+      return path.join(storagePath, storageDir, fileName);
+    }
+    
+    // If we can't extract relative path, check if absolute path exists (might be correct format)
+    // Otherwise, fall back to constructed path
+    return constructedPath;
+  }
+
   async download(uid: string, source?: string): Promise<{ filePath: string; filename: string; mimeType: string } | null> {
     let normalizedSource = (source || 'analysed').toString().toLowerCase();
     if (normalizedSource === 'dataset') {
@@ -167,16 +220,22 @@ export class FilesService extends BaseService {
 
       const fileInfo =
         normalizedSource === 'cleaned' ? task?.data?.file_cleaned : task?.data?.file_analysed;
-      const targetPath: string | null = fileInfo?.path ?? null;
+      const storedPath: string | null = fileInfo?.path ?? null;
 
-      if (!targetPath) {
-        return null;
-      }
+      // Resolve file path - handles path format differences between microservice and backend
+      // Since both share the same volume, we can construct the path reliably using file_id
+      const targetPath = this.resolveProcessedFilePath(
+        uid, 
+        normalizedSource as 'cleaned' | 'analysed',
+        storedPath
+      );
 
-      // Check if file exists
+      // Check if file exists at resolved path
       try {
         await fs.access(targetPath);
-      } catch {
+      } catch (error) {
+        console.error(`[FilesService] File not found at ${targetPath} for file_id: ${uid}, source: ${normalizedSource}`);
+        console.error(`[FilesService] Stored path in DB: ${storedPath || 'null'}`);
         return null;
       }
 
@@ -200,15 +259,32 @@ export class FilesService extends BaseService {
       return null;
     }
 
+    // Resolve dataset file path (should already be correct from upload, but normalize for safety)
+    let datasetPath = file.data.file_path;
+    const storagePath = this.getStoragePath();
+    
+    // If path is relative or needs normalization, resolve it
+    if (!path.isAbsolute(datasetPath) || !datasetPath.includes(storagePath)) {
+      // Check if it's a relative path like "datasets/{file_id}.csv"
+      if (datasetPath.includes('datasets')) {
+        const fileName = path.basename(datasetPath);
+        datasetPath = path.join(storagePath, 'datasets', fileName);
+      } else if (!path.isAbsolute(datasetPath)) {
+        // Relative path, resolve against storage
+        datasetPath = path.join(storagePath, datasetPath);
+      }
+    }
+
     // Check if file exists
     try {
-      await fs.access(file.data.file_path);
+      await fs.access(datasetPath);
     } catch {
+      console.error(`[FilesService] Dataset file not found at ${datasetPath} for file_id: ${uid}`);
       return null;
     }
 
     return {
-      filePath: file.data.file_path,
+      filePath: datasetPath,
       filename: file.data.filename,
       mimeType: file.data.type || 'text/csv',
     };

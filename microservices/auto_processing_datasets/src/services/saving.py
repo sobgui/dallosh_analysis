@@ -35,7 +35,7 @@ def saving(file_id: str, df, event_emitter: callable, db_adapter=None) -> str:
     
     # Save analysed dataset
     analysed_path = os.path.join(STORAGE_ANALYSED, f"{file_id}.csv")
-    # Ensure we use absolute path
+    # Ensure we use absolute path for file operations
     analysed_path = os.path.abspath(analysed_path)
     df.to_csv(analysed_path, index=False)
     
@@ -43,16 +43,21 @@ def saving(file_id: str, df, event_emitter: callable, db_adapter=None) -> str:
 
     if db_adapter is not None:
         try:
+            # Store relative path (e.g., "analysed/{file_id}.csv") for cross-container compatibility
+            # Both backend and microservice can resolve this relative to their own storage paths
+            relative_path = os.path.join('analysed', f"{file_id}.csv")
+            
             db_adapter.update_one(
                 'tasks',
                 {'data.file_id': file_id},
                 {
-                    'data.file_analysed.path': analysed_path,
+                    'data.file_analysed.path': relative_path,
                     'data.file_analysed.type': 'text/csv',
                     'updatedAt': datetime.utcnow(),
                     'updatedBy': 'system',
                 }
             )
+            print(f"Updated task with analysed file path (relative): {relative_path}")
         except Exception as exc:
             print(f"Warning: failed to update task with analysed file path: {exc}")
     
