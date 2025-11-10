@@ -1,4 +1,3 @@
-
 # env files (can opt-in for committing if needed)
 .env
 .env.local
@@ -7,16 +6,39 @@
 !.env.example
 !.env.production.example
 
+# Logs
 ./**/logs/**
+*.log
 
-# vercel
+# Vercel
 .vercel
 .backups
+
+# Storage and data directories
 storage/*
+!storage/.gitkeep
 docs/project
 _project
 models/*
-mongodb/data/*
-mongodb/config/*
-rabbitmq/data/*
 
+# Database data (MongoDB)
+mongodb/data/
+mongodb/data/**
+!mongodb/data/.gitkeep
+mongodb/config/
+mongodb/config/**
+
+# Message broker data (RabbitMQ)
+rabbitmq/data/
+rabbitmq/data/**
+
+# Large files that should not be committed
+*.wt
+*.journal
+WiredTiger*
+journal/
+diagnostic.data/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,2 +1,0 @@
-VHOST: /
-QUEUE: celery_processing_queue
