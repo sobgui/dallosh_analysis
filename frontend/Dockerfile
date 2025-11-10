@@ -4,12 +4,13 @@
 FROM node:20-alpine AS base
 WORKDIR /project/frontend
 
-# Install dependencies stage with BuildKit cache mount
+# Install dependencies stage
 FROM base AS install
 COPY package.json ./
-# Use BuildKit cache mount to speed up npm install on subsequent builds
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --legacy-peer-deps
+# Install dependencies
+# Note: Not using cache mount due to npm cache corruption issues in BuildKit
+# Docker layer caching will still speed up builds if package.json doesn't change
+RUN npm install --legacy-peer-deps
 
 # Build stage
 FROM base AS prerelease
@@ -29,20 +30,23 @@ WORKDIR /project/frontend
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy package.json and install only production dependencies as root
+# Copy node_modules from install stage and prune dev dependencies
+# This is faster than reinstalling everything
+COPY --from=install /project/frontend/node_modules ./node_modules
 COPY package.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --only=production --legacy-peer-deps && \
+# Remove dev dependencies to reduce image size
+RUN npm prune --production && \
     npm cache clean --force
 
 # Copy built application (as root, then chown only specific dirs)
 COPY --from=prerelease /project/frontend/public ./public
 COPY --from=prerelease /project/frontend/.next ./.next
 
-# Change ownership of only necessary directories (not entire node_modules)
-# This is much faster than chowning everything
-RUN chown -R nextjs:nodejs /project/frontend/.next /project/frontend/public && \
-    chown nextjs:nodejs /project/frontend
+# Change ownership of necessary directories
+# Note: We need to chown node_modules so nextjs user can read it
+# This is still faster than the previous approach of chowning entire /project/frontend
+RUN chown -R nextjs:nodejs /project/frontend/node_modules /project/frontend/.next /project/frontend/public && \
+    chown nextjs:nodejs /project/frontend /project/frontend/package.json
 
 # Switch to non-root user
 USER nextjs
