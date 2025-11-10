@@ -210,20 +210,22 @@ export function SidebarFilesList({ onFileSelect, selectedFileId }: SidebarFilesL
                 <div
                   key={file.uid}
                   className={cn(
-                    "p-4 cursor-pointer hover:bg-accent transition-colors",
-                    isSelected && "bg-primary/5 text-primary-foreground"
+                    "p-4 cursor-pointer hover:bg-accent transition-colors border-l-2",
+                    isSelected 
+                      ? "bg-primary/10 border-primary" 
+                      : "border-transparent"
                   )}
                   onClick={() => onFileSelect(file)}
                 >
                   <div className="flex items-start gap-3">
                     <FileText className={cn(
                       "h-5 w-5 mt-0.5 flex-shrink-0",
-                      isSelected ? "text-primary-foreground" : "text-primary"
+                      isSelected ? "text-primary" : "text-muted-foreground"
                     )} />
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "font-medium text-sm truncate",
-                        isSelected ? "text-primary-foreground" : "text-foreground"
+                        isSelected ? "text-foreground font-semibold" : "text-foreground"
                       )}>
                         {file.data.filename}
                       </p>
@@ -242,10 +244,7 @@ export function SidebarFilesList({ onFileSelect, selectedFileId }: SidebarFilesL
                         >
                           {status}
                         </Badge>
-                        <span className={cn(
-                          "text-xs",
-                          isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
-                        )}>
+                        <span className="text-xs text-muted-foreground">
                           {new Date(file.createdAt).toLocaleDateString()}
                         </span>
                       </div>
