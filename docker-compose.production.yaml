@@ -96,17 +96,23 @@ services:
       retries: 5
       start_period: 120s
 
-  # Shared image for microservices (worker and listener use the same build)
+  # Shared image builder for microservices
+  # This service builds the image dallosh_microservice_datasets:latest
+  # Worker and listener services will use this same image (no build duplication)
   microservice_datasets:
     build:
       context: ./microservices/auto_processing_datasets
       dockerfile: Dockerfile
     image: dallosh_microservice_datasets:latest
-    # This service is not started directly, it's just used to build the image
-    profiles:
-      - build-only
+    # This service only builds the image - it exits immediately after building
+    # The container won't stay running, but the image will be available
+    command: ["sh", "-c", "echo 'Microservice image built: dallosh_microservice_datasets:latest' && exit 0"]
+    restart: "no"
+    networks:
+      - dallosh_network
 
   # Celery Worker for Microservice
+  # Uses the shared image built by microservice_datasets (NO build section - avoids duplication)
   microservice_celery_worker:
     image: dallosh_microservice_datasets:latest
     container_name: dallosh_celery_worker
@@ -118,6 +124,8 @@ services:
       - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
+      microservice_datasets:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
       mongodb:
@@ -135,6 +143,7 @@ services:
       start_period: 20s
 
   # Celery Event Listener for Microservice
+  # Uses the shared image built by microservice_datasets (NO build section - avoids duplication)
   microservice_celery_listener:
     image: dallosh_microservice_datasets:latest
     container_name: dallosh_celery_listener
@@ -146,6 +155,8 @@ services:
       - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
+      microservice_datasets:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
       mongodb:
@@ -226,4 +237,3 @@ volumes:
 networks:
   dallosh_network:
     driver: bridge
-
