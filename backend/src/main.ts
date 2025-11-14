@@ -43,6 +43,7 @@ const bootstrap = async (configs: BootstrapConfig): Promise<void> => {
     }
 
     console.log(`Database config: ${dbConfigs.type}://${dbConfigs.host}:${dbConfigs.port}/${dbConfigs.dbname}`);
+    console.log(`Auth configured: ${dbConfigs.auth ? `yes (user: ${dbConfigs.auth.username})` : 'no'}`);
 
     // Initialize database service with config
     databaseServiceInstance = new DatabaseService(dbConfigs);
