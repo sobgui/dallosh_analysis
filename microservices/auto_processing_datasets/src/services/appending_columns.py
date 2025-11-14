@@ -18,7 +18,6 @@ def appending_columns(file_id: str, event_emitter: callable) -> None:
         file_id: File identifier
         event_emitter: Function to emit events (file_id, event)
     """
-    # Emit appending event
     event_emitter(file_id, TASK_STATUS_APPENDING_COLUMNS)
     event_emitter(file_id, TASK_STATUS_APPENDING_COLUMNS_DONE)
 

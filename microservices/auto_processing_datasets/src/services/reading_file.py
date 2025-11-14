@@ -25,14 +25,11 @@ def reading_file(file_path: str, event_emitter: callable) -> tuple[str, pd.DataF
     """
     file_id = get_file_id_from_path(file_path)
     
-    # Emit reading event
     event_emitter(file_id, TASK_STATUS_READING_DATASET)
     
-    # Read CSV
     df = pd.read_csv(file_path)
     print(f"Read dataset: {len(df)} rows, {len(df.columns)} columns")
 
-    # Emit completion event with metadata
     event_emitter(
         file_id,
         TASK_STATUS_READING_DATASET_DONE,

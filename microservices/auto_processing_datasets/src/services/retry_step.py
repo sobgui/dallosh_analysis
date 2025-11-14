@@ -31,7 +31,7 @@ def retry_step(file_id: str, last_event_step: str, file_path: str, ai_config: di
     from src.services.saving import saving
     import pandas as pd
     
-    # Determine which steps to execute based on last_event_step
+    # Determine which processing steps to execute based on last completed step
     steps_to_execute = []
     
     if last_event_step == TASK_STATUS_IN_QUEUE:
@@ -47,36 +47,30 @@ def retry_step(file_id: str, last_event_step: str, file_path: str, ai_config: di
     elif last_event_step == TASK_STATUS_SAVING_FILE:
         steps_to_execute = ['save']
     else:
-        # Default: start from beginning
         steps_to_execute = ['read', 'clean', 'llm', 'append', 'save']
     
     df = None
     
-    # Execute steps
     for step in steps_to_execute:
         if step == 'read':
             file_id, df = reading_file(file_path, event_emitter)
         elif step == 'clean':
             if df is None:
-                # Need to read first
                 file_id, df = reading_file(file_path, event_emitter)
             df = cleaning(file_id, df, event_emitter, db_adapter)
         elif step == 'llm':
             if df is None:
-                # Need to read and clean first
                 file_id, df = reading_file(file_path, event_emitter)
                 df = cleaning(file_id, df, event_emitter, db_adapter)
             df, _ = calling_llm(file_id, df, ai_config, event_emitter)
         elif step == 'append':
             if df is None:
-                # Need to do full process
                 file_id, df = reading_file(file_path, event_emitter)
                 df = cleaning(file_id, df, event_emitter, db_adapter)
                 df, _ = calling_llm(file_id, df, ai_config, event_emitter)
             appending_columns(file_id, event_emitter)
         elif step == 'save':
             if df is None:
-                # Need to do full process
                 file_id, df = reading_file(file_path, event_emitter)
                 df = cleaning(file_id, df, event_emitter, db_adapter)
                 df, _ = calling_llm(file_id, df, ai_config, event_emitter)
