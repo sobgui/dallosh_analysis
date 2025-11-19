@@ -151,28 +151,30 @@ def _call_llm_api(model: dict, texts: List[str], ai_config: dict, retry_count: i
     model_name = model['data']['model']
     max_retries = min(model['data'].get('retryRequests', DEFAULT_RETRY_REQUESTS), MAX_RETRY_REQUESTS)
     
-    prompt = f"""You are analyzing customer complaints/messages from social media posts from Twitter, where the user mentioned brand name or company name in telecommunication industry about the customer service, the company is Free Mobile located in France. For each post below, provide:
-- sentiment: 'negative', 'neutral', or 'positive'
-- priority: 'high', 'normal', or 'low'
-- topic: main topic/subject of the post
+    prompt = f"""You are tasked with analyzing customer complaints and messages from social media posts on Twitter mentioning the brand Free Mobile in France's telecommunication industry. For each post below, you must identify:
 
+                - sentiment: classify as 'negative', 'neutral', or 'positive' based on the overall tone, considering explicit dissatisfaction, frustration, or praise, not just keyword presence.
+                - priority: classify as 'high', 'normal', or 'low' considering urgency implied by the message, intensity of complaints, and expressions of frustration.
+                - topic: identify the main subject or theme of the post (e.g., network issues, billing, customer service, technical support).
 
-Analyze the following posts and return a JSON object with:
-- data: object containing sentiment, priority, and topic arrays
+                The sentiment analysis should capture emotional cues including frustration, impatience, or dissatisfaction, especially in cases like delays or unresolved service issues, beyond simple word sentiment.
 
-I have a list of posts contaiing {len(texts)} posts.
-List of Posts:
-{json.dumps(texts, ensure_ascii=False)}
+                Analyze the following posts and return a JSON object with:
+                - data: an object containing arrays of sentiment, priority, and topic for each post.
 
-I want for each post in the list of posts, you will return the sentiment, priority, and topic for that post.
+                I have {len(texts)} posts to analyze.
+                Posts list:
+                {json.dumps(texts, ensure_ascii=False)}
 
-Return only valid JSON in this exact format:
-{{"data": {{"sentiment": [...], "priority": [...], "topic": [...]}}}}
+                For each post, return its sentiment, priority, and topic.
 
-Where:
-- sentiment array which contains: 'negative', 'neutral', or 'positive' for each post
-- priority array contains: 'high', 'normal', or 'low' for each post
-- topic array contains: the main topic/subject for each post"""
+                Return only valid JSON in exactly this format:
+                {"data": {"sentiment": [...], "priority": [...], "topic": [...]}}
+
+                Where:
+                - sentiment is one of 'negative', 'neutral', or 'positive'.
+                - priority is one of 'high', 'normal', or 'low'.
+                - topic is a concise descriptive label summarizing the main subject."""
     
     headers = {
         'Content-Type': 'application/json',
