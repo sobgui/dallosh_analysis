@@ -247,10 +247,10 @@ Comprehensive technical documentation is available in the [`docs`](./docs/) dire
 ## Team
 
 - **Ivan Joel SOBGUI**
-- **Cyrile**
+- ** Armel Cyrille**
 - **Pascal**
-- **Ben Lol**
-- **Mohammed**
+- **OUMAR Ben Lol**
+- **Mohammed SGHIOURI**
 
 ## License
 
