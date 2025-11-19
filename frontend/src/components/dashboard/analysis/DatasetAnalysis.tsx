@@ -435,36 +435,187 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
     };
   });
 
-  // 5. Engagement Metrics by Sentiment (Reply Ratio)
+  // 5. Engagement Metrics by Sentiment (Likes, Retweets, Replies averages)
   const engagementBySentiment = csvData.reduce((acc, row) => {
     const sentiment = row.sentiment?.toLowerCase() || row.sentiment_analysis?.toLowerCase() || "";
-    const inReplyTo = row.in_reply_to && row.in_reply_to !== "null" && row.in_reply_to !== "" ? row.in_reply_to : null;
+    const favoriteCount = parseInt(row.favorite_count || "0", 10);
+    const retweetCount = parseInt(row.retweet_count || "0", 10);
+    const replyCount = parseInt(row.reply_count || "0", 10);
+    const viewsCount = parseFloat(row.views_count || "0");
     
     let sentimentKey = "neutral";
     if (sentiment.includes("positive")) sentimentKey = "positive";
     else if (sentiment.includes("negative")) sentimentKey = "negative";
     
     if (!acc[sentimentKey]) {
-      acc[sentimentKey] = { sentiment: sentimentKey, total: 0, replies: 0, original: 0 };
+      acc[sentimentKey] = {
+        sentiment: sentimentKey,
+        total: 0,
+        totalFavorites: 0,
+        totalRetweets: 0,
+        totalReplies: 0,
+        totalViews: 0,
+      };
+    }
+    
+    acc[sentimentKey].total++;
+    acc[sentimentKey].totalFavorites += favoriteCount;
+    acc[sentimentKey].totalRetweets += retweetCount;
+    acc[sentimentKey].totalReplies += replyCount;
+    acc[sentimentKey].totalViews += viewsCount;
+    
+    return acc;
+  }, {} as Record<string, {
+    sentiment: string;
+    total: number;
+    totalFavorites: number;
+    totalRetweets: number;
+    totalReplies: number;
+    totalViews: number;
+  }>);
+
+  const engagementBySentimentData = Object.values(engagementBySentiment).map(item => ({
+    sentiment: item.sentiment.charAt(0).toUpperCase() + item.sentiment.slice(1),
+    avgLikes: item.total > 0 ? parseFloat((item.totalFavorites / item.total).toFixed(1)) : 0,
+    avgRetweets: item.total > 0 ? parseFloat((item.totalRetweets / item.total).toFixed(1)) : 0,
+    avgReplies: item.total > 0 ? parseFloat((item.totalReplies / item.total).toFixed(1)) : 0,
+    avgViews: item.total > 0 ? parseFloat((item.totalViews / item.total).toFixed(0)) : 0,
+    totalLikes: item.totalFavorites,
+    totalRetweets: item.totalRetweets,
+    totalReplies: item.totalReplies,
+  }));
+
+  // Top 5 Users with Most Positive Sentiment Average
+  const usersWithPositiveSentiment = Object.values(userData)
+    .map((user) => {
+      const total = user.positive + user.neutral + user.negative;
+      const avgSentiment = total > 0 
+        ? ((user.positive * 1 + user.neutral * 0 + user.negative * -1) / total)
+        : 0;
+      return {
+        name: user.screen_name || user.user_id,
+        user_id: user.user_id,
+        avgSentiment,
+        total,
+        positive: user.positive,
+        neutral: user.neutral,
+        negative: user.negative,
+      };
+    })
+    .filter(user => user.total > 0 && user.avgSentiment > 0)
+    .sort((a, b) => b.avgSentiment - a.avgSentiment)
+    .slice(0, 5);
+
+  // Top 5 Users with Most Negative Sentiment Average
+  const usersWithNegativeSentiment = Object.values(userData)
+    .map((user) => {
+      const total = user.positive + user.neutral + user.negative;
+      const avgSentiment = total > 0 
+        ? ((user.positive * 1 + user.neutral * 0 + user.negative * -1) / total)
+        : 0;
+      return {
+        name: user.screen_name || user.user_id,
+        user_id: user.user_id,
+        avgSentiment,
+        total,
+        positive: user.positive,
+        neutral: user.neutral,
+        negative: user.negative,
+      };
+    })
+    .filter(user => user.total > 0 && user.avgSentiment < 0)
+    .sort((a, b) => a.avgSentiment - b.avgSentiment)
+    .slice(0, 5);
+
+  // Media Distribution by Sentiment
+  const mediaBySentiment = csvData.reduce((acc, row) => {
+    const sentiment = row.sentiment?.toLowerCase() || row.sentiment_analysis?.toLowerCase() || "";
+    const hasMedia = row.media && row.media !== "[]" && row.media.trim() !== "";
+    
+    let sentimentKey = "neutral";
+    if (sentiment.includes("positive")) sentimentKey = "positive";
+    else if (sentiment.includes("negative")) sentimentKey = "negative";
+    
+    const mediaType = hasMedia ? "with_media" : "no_media";
+    
+    if (!acc[sentimentKey]) {
+      acc[sentimentKey] = { with_media: 0, no_media: 0 };
+    }
+    
+    acc[sentimentKey][mediaType]++;
+    
+    return acc;
+  }, {} as Record<string, { with_media: number; no_media: number }>);
+
+  const mediaBySentimentData = Object.entries(mediaBySentiment).map(([sentiment, counts]) => ({
+    sentiment: sentiment.charAt(0).toUpperCase() + sentiment.slice(1),
+    with_media: counts.with_media,
+    no_media: counts.no_media,
+    total: counts.with_media + counts.no_media,
+    mediaRatio: counts.with_media + counts.no_media > 0 
+      ? ((counts.with_media / (counts.with_media + counts.no_media)) * 100).toFixed(1)
+      : "0",
+  }));
+
+  // Reply Rate by Sentiment
+  const replyRateBySentiment = csvData.reduce((acc, row) => {
+    const sentiment = row.sentiment?.toLowerCase() || row.sentiment_analysis?.toLowerCase() || "";
+    const inReplyTo = row.in_reply_to && row.in_reply_to !== "null" && row.in_reply_to !== "" ? row.in_reply_to : null;
+    const replyCount = parseInt(row.reply_count || "0", 10);
+    
+    let sentimentKey = "neutral";
+    if (sentiment.includes("positive")) sentimentKey = "positive";
+    else if (sentiment.includes("negative")) sentimentKey = "negative";
+    
+    if (!acc[sentimentKey]) {
+      acc[sentimentKey] = { total: 0, replies: 0, totalReplyCount: 0 };
     }
     
     acc[sentimentKey].total++;
     if (inReplyTo) {
       acc[sentimentKey].replies++;
-    } else {
-      acc[sentimentKey].original++;
     }
+    acc[sentimentKey].totalReplyCount += replyCount;
     
     return acc;
-  }, {} as Record<string, { sentiment: string; total: number; replies: number; original: number }>);
+  }, {} as Record<string, { total: number; replies: number; totalReplyCount: number }>);
 
-  const engagementBySentimentData = Object.values(engagementBySentiment).map(item => ({
-    sentiment: item.sentiment.charAt(0).toUpperCase() + item.sentiment.slice(1),
-    replies: item.replies,
-    original: item.original,
-    replyRatio: item.total > 0 ? ((item.replies / item.total) * 100).toFixed(1) : "0",
-    engagementRate: item.total > 0 ? (((item.replies + item.original) / item.total) * 100).toFixed(1) : "0",
+  const replyRateBySentimentData = Object.entries(replyRateBySentiment).map(([sentiment, data]) => ({
+    sentiment: sentiment.charAt(0).toUpperCase() + sentiment.slice(1),
+    total: data.total,
+    replies: data.replies,
+    replyRate: data.total > 0 ? parseFloat(((data.replies / data.total) * 100).toFixed(1)) : 0,
+    avgReplyCount: data.total > 0 ? parseFloat((data.totalReplyCount / data.total).toFixed(1)) : 0,
   }));
+
+  // Top 10 Critical Tweets (Negative + High Priority)
+  const criticalTweets = csvData
+    .filter((row) => {
+      const sentiment = row.sentiment?.toLowerCase() || row.sentiment_analysis?.toLowerCase() || "";
+      const priority = row.priority;
+      const isNegative = sentiment.includes("negative");
+      const isHighPriority = priority === "2" || priority?.toLowerCase() === "high";
+      return isNegative && isHighPriority;
+    })
+    .map((row) => ({
+      id: row.id,
+      full_text: row.full_text || row.text || "",
+      screen_name: row.screen_name || "Unknown",
+      created_at: row.created_at,
+      sentiment: row.sentiment || row.sentiment_analysis || "negative",
+      priority: row.priority,
+      main_topic: row.main_topic || row.topic || "Unknown",
+      favorite_count: parseInt(row.favorite_count || "0", 10),
+      retweet_count: parseInt(row.retweet_count || "0", 10),
+      reply_count: parseInt(row.reply_count || "0", 10),
+      views_count: parseFloat(row.views_count || "0"),
+    }))
+    .sort((a, b) => {
+      const aEngagement = a.favorite_count + a.retweet_count + a.reply_count;
+      const bEngagement = b.favorite_count + b.retweet_count + b.reply_count;
+      return bEngagement - aEngagement;
+    })
+    .slice(0, 10);
 
   // 6. Critical Topics Analysis (Negative + High Priority)
   const criticalTopics = csvData.reduce((acc, row) => {
@@ -1117,8 +1268,8 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
         {/* 4. Engagement Metrics by Sentiment */}
         <Card>
           <CardHeader>
-            <CardTitle>Engagement par Sentiment</CardTitle>
-            <CardDescription>Métriques d'engagement (réponses vs publications originales) par sentiment</CardDescription>
+            <CardTitle>Engagement Moyen par Sentiment</CardTitle>
+            <CardDescription>Moyennes de likes, retweets et replies par catégorie de sentiment</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -1134,10 +1285,10 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
                         <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
                           <p className="font-semibold">{data.sentiment}</p>
                           <div className="mt-2 space-y-1">
-                            <p className="text-sm">Réponses: {data.replies}</p>
-                            <p className="text-sm">Publications originales: {data.original}</p>
-                            <p className="text-sm text-blue-600">Taux de réponse: {data.replyRatio}%</p>
-                            <p className="text-sm text-purple-600">Taux d'engagement: {data.engagementRate}%</p>
+                            <p className="text-sm text-red-500">❤️ Likes moyens: {data.avgLikes.toFixed(1)}</p>
+                            <p className="text-sm text-blue-500">🔄 Retweets moyens: {data.avgRetweets.toFixed(1)}</p>
+                            <p className="text-sm text-green-500">💬 Replies moyens: {data.avgReplies.toFixed(1)}</p>
+                            <p className="text-xs text-muted-foreground mt-2">Totaux: {data.totalLikes} likes, {data.totalRetweets} RT, {data.totalReplies} replies</p>
                           </div>
                         </div>
                       );
@@ -1146,8 +1297,9 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="replies" fill="#3b82f6" name="Réponses" />
-                <Bar dataKey="original" fill="#8b5cf6" name="Publications originales" />
+                <Bar dataKey="avgLikes" fill="#ef4444" name="Likes Moyens" />
+                <Bar dataKey="avgRetweets" fill="#3b82f6" name="Retweets Moyens" />
+                <Bar dataKey="avgReplies" fill="#22c55e" name="Replies Moyens" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -1241,6 +1393,232 @@ export function DatasetAnalysis({ task }: DatasetAnalysisProps) {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Analysis Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Top 5 Users with Most Positive Sentiment */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Utilisateurs les Plus Positifs</CardTitle>
+            <CardDescription>Utilisateurs avec le sentiment moyen le plus positif</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {usersWithPositiveSentiment.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={usersWithPositiveSentiment} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={120} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold">{data.name}</p>
+                            <p className="text-xs text-muted-foreground">User ID: {data.user_id}</p>
+                            <div className="mt-2 space-y-1">
+                              <p className="text-sm text-green-600">Sentiment moyen: +{data.avgSentiment.toFixed(2)}</p>
+                              <p className="text-sm">Total tweets: {data.total}</p>
+                              <p className="text-xs text-green-600">Positifs: {data.positive}</p>
+                              <p className="text-xs text-orange-600">Neutres: {data.neutral}</p>
+                              <p className="text-xs text-red-600">Négatifs: {data.negative}</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="avgSentiment" fill="#22c55e" name="Sentiment Moyen" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                Aucun utilisateur avec sentiment positif trouvé
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top 5 Users with Most Negative Sentiment */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Utilisateurs les Plus Négatifs</CardTitle>
+            <CardDescription>Utilisateurs avec le sentiment moyen le plus négatif</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {usersWithNegativeSentiment.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={usersWithNegativeSentiment} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" width={120} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold">{data.name}</p>
+                            <p className="text-xs text-muted-foreground">User ID: {data.user_id}</p>
+                            <div className="mt-2 space-y-1">
+                              <p className="text-sm text-red-600">Sentiment moyen: {data.avgSentiment.toFixed(2)}</p>
+                              <p className="text-sm">Total tweets: {data.total}</p>
+                              <p className="text-xs text-green-600">Positifs: {data.positive}</p>
+                              <p className="text-xs text-orange-600">Neutres: {data.neutral}</p>
+                              <p className="text-xs text-red-600">Négatifs: {data.negative}</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="avgSentiment" fill="#ef4444" name="Sentiment Moyen" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                Aucun utilisateur avec sentiment négatif trouvé
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Media Distribution by Sentiment */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Répartition des Médias par Sentiment</CardTitle>
+            <CardDescription>Distribution des tweets avec/sans médias selon le sentiment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={mediaBySentimentData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="sentiment" />
+                <YAxis />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold">{data.sentiment}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Total: {data.total}</p>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-blue-600">Avec médias: {data.with_media} ({data.mediaRatio}%)</p>
+                            <p className="text-xs text-gray-600">Sans médias: {data.no_media} ({100 - parseFloat(data.mediaRatio)}%)</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="with_media" fill="#3b82f6" name="Avec Médias" />
+                <Bar dataKey="no_media" fill="#9ca3af" name="Sans Médias" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Reply Rate by Sentiment */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Taux de Réponse par Sentiment</CardTitle>
+            <CardDescription>Pourcentage de tweets qui sont des réponses et nombre moyen de réponses par sentiment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={replyRateBySentimentData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="sentiment" />
+                <YAxis />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold">{data.sentiment}</p>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm">Total tweets: {data.total}</p>
+                            <p className="text-sm text-blue-600">Tweets en réponse: {data.replies}</p>
+                            <p className="text-sm text-purple-600">Taux de réponse: {data.replyRate.toFixed(1)}%</p>
+                            <p className="text-sm text-orange-600">Réponses moyennes par tweet: {data.avgReplyCount.toFixed(1)}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="replies" fill="#3b82f6" name="Tweets en Réponse" />
+                <Bar dataKey="total" fill="#9ca3af" name="Total Tweets" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top 10 Critical Tweets */}
+        <Card className="col-span-2">
+          <CardHeader>
+            <CardTitle>Top 10 Tweets Critiques</CardTitle>
+            <CardDescription>Tweets négatifs avec haute priorité nécessitant une attention immédiate</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {criticalTweets.length > 0 ? (
+              <div className="border rounded-lg overflow-auto max-h-96">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[150px]">Utilisateur</TableHead>
+                      <TableHead className="min-w-[300px]">Contenu du Tweet</TableHead>
+                      <TableHead className="min-w-[120px]">Date</TableHead>
+                      <TableHead className="min-w-[100px]">Topic</TableHead>
+                      <TableHead className="min-w-[100px] text-right">Engagement</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {criticalTweets.map((tweet, index) => {
+                      const engagement = tweet.favorite_count + tweet.retweet_count + tweet.reply_count;
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium text-foreground">{tweet.screen_name}</TableCell>
+                          <TableCell className="text-foreground">
+                            <div className="break-words max-w-md">{tweet.full_text}</div>
+                          </TableCell>
+                          <TableCell className="text-sm text-foreground">
+                            {tweet.created_at ? new Date(tweet.created_at).toLocaleDateString() : "N/A"}
+                          </TableCell>
+                          <TableCell className="text-sm text-foreground">{tweet.main_topic}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-sm font-semibold text-foreground">{engagement}</span>
+                              <div className="flex gap-2 text-xs text-muted-foreground">
+                                <span>❤️ {tweet.favorite_count}</span>
+                                <span>🔄 {tweet.retweet_count}</span>
+                                <span>💬 {tweet.reply_count}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                Aucun tweet critique trouvé (négatif + haute priorité)
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
