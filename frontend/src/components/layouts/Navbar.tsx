@@ -107,11 +107,9 @@ export function Navbar() {
             </Button>
           ) : (
             <div className="flex items-center gap-4">
+              
               <Link href="/auth">
-                <Button variant="ghost" className="text-foreground hover:text-primary">Login</Button>
-              </Link>
-              <Link href="/auth">
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">Get Started</Button>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">Login</Button>
               </Link>
             </div>
           )}

@@ -74,36 +74,18 @@ export default function AuthPage() {
         <div className="w-full max-w-md mx-auto space-y-8 mt-8 lg:mt-0">
           <div className="space-y-2">
             <h2 className="text-3xl font-bold text-foreground">
-              {activeTab === "login" ? "Welcome Back" : "Create Account"}
+              Welcome Back
             </h2>
-            <p className="text-muted-foreground">
-              {activeTab === "login"
-                ? "Sign in to access your analytics dashboard"
-                : "Sign up to get started with Dallosh Analysis"}
-            </p>
+            
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 h-12">
-              <TabsTrigger 
-                value="login" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium"
-              >
-                Login
-              </TabsTrigger>
-              <TabsTrigger 
-                value="register"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm font-medium"
-              >
-                Register
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value="login" className="w-full">
+            
             <TabsContent value="login" className="mt-8">
               <Login />
             </TabsContent>
-            <TabsContent value="register" className="mt-8">
-              <Register />
-            </TabsContent>
+            
+            
           </Tabs>
         </div>
       </div>

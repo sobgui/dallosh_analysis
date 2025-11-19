@@ -23,6 +23,8 @@ export class MongoDatabase implements DatabaseAdapter {
     }
   }
 
+  
+
   async connect(): Promise<void> {
     try {
       const uri = this.buildConnectionUri();
@@ -49,6 +51,7 @@ export class MongoDatabase implements DatabaseAdapter {
       console.log('Disconnected from MongoDB');
     }
   }
+
 
   async createCollection(name: string): Promise<void> {
     if (!this.db) {

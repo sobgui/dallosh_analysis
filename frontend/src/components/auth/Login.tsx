@@ -121,34 +121,7 @@ export function Login() {
       >
         {loading ? "Signing in..." : "Sign In"}
       </Button>
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-background px-3 text-muted-foreground">Or continue with</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Button 
-          type="button" 
-          variant="outline" 
-          className="w-full h-11 border-border/50 hover:bg-muted font-medium"
-        >
-          <span className="mr-2 font-bold text-lg">G</span>
-          Google
-        </Button>
-        <Button 
-          type="button" 
-          variant="outline" 
-          className="w-full h-11 border-border/50 hover:bg-muted font-medium"
-        >
-          <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.628h11.377V24H0zm12.623 0H24V24H12.623z"/>
-          </svg>
-          Microsoft
-        </Button>
-      </div>
+      
     </form>
   );
 }
