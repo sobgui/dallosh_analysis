@@ -500,4 +500,3 @@ def calling_llm(file_id: str, df, ai_config: dict, event_emitter: callable,
     )
     
     return df, model_uid
-
