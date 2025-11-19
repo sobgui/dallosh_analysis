@@ -3,7 +3,7 @@
 services:
   # RabbitMQ Message Broker
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-management-alpine 
     container_name: dallosh_rabbitmq
     hostname: rabbitmq
     ports:
@@ -42,7 +42,7 @@ services:
     networks:
       - dallosh_network
     healthcheck:
-      test: ["CMD-SHELL", "mongo --quiet --eval 'db.adminCommand(\"ping\")' mongodb://admin:admin123@localhost:27017/admin?authSource=admin || exit 1"]
+      test: ["CMD-SHELL", "mongo --quiet --eval 'db.runCommand({ ping: 1 })' mongodb://admin:admin123@localhost:27017/admin?authSource=admin || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -105,7 +105,7 @@ services:
       - ./storage:/project/backend/storage
       - ./microservices/auto_processing_datasets/logs:/project/microservices/auto_processing_datasets/logs
     depends_on:
-      microservice_datasets:
+      microservice_datasets: 
         condition: service_started
       rabbitmq:
         condition: service_healthy
