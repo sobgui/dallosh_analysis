@@ -1,6 +1,5 @@
 # Dallosh Analysis
 
-
 > An innovative data analysis platform for automating customer reclamation/complaint processing for Telecom Companies using AI-powered sentiment analysis and data visualization.
 
 [French Version](./FR_Readme.md)
@@ -249,8 +248,14 @@ Comprehensive technical documentation is available in the [`docs`](./docs/) dire
 - **Ivan Joel SOBGUI**
 - ** Armel Cyrille**
 - **Pascal**
+<<<<<<< HEAD
 - **OUMAR Ben Lol**
 - **Mohammed SGHIOURI**
+=======
+- **Ben Lol**
+- **Mohammed**
+- Nagui
+>>>>>>> main
 
 ## License
 

@@ -130,4 +130,3 @@ def cleaning(file_id: str, df: pd.DataFrame, event_emitter: callable, db_adapter
     )
     
     return df
-
