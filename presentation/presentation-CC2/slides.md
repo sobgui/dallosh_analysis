@@ -31,12 +31,12 @@ mdc: true
   <div class="mt-16 text-sm bg-black/50 backdrop-blur-sm px-4 py-2 rounded text-white">Bloc CC2 - Examen Final</div>
   
   <div class="mt-12 grid grid-cols-3 gap-x-8 gap-y-4 text-sm bg-black/50 backdrop-blur-sm px-8 py-4 rounded-lg">
-    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Ivan Joel SOBGUI</div>
-    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Armel Cyrille</div>
-    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Pascal</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> SOBGUI Ivan Joel</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> BOTI Armel Cyrille</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> ELOUMOU Pascal Aurèle</div>
     <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> OUMAR Ben Lol</div>
-    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Mohammed SGHIOURI</div>
-    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Nagui</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> SGHIOURI Mohammed</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> DIVENGI BUNKEMBO Nagui</div>
   </div>
 </div>
 
