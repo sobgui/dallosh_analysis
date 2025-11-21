@@ -1,6 +1,6 @@
 ---
 theme: seriph
-background: https://cover.sli.dev
+background: /images/concept-de-transformation-numerique-de-fond-de-cerveau-de-technologie-d-ia.jpg
 title: Dallosh Analysis - Bloc CC2
 info: |
   ## Dallosh Analysis
@@ -12,28 +12,39 @@ transition: slide-left
 mdc: true
 ---
 
-# Dallosh Analysis
+<div class="absolute top-8 left-8 flex items-center gap-4 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg">
+  <img src="/images/hetic-log.png" class="h-10 w-auto" alt="HETIC Logo" />
+  <div class="text-left text-white">
+    <div class="text-sm font-bold">MD5 Data IA</div>
+    <div class="text-xs opacity-90">2024-2025</div>
+  </div>
+</div>
 
-Analyse des Tweets SAV Free Mobile & Stratégie
+<div class="h-full flex flex-col items-center justify-center">
+  <h1 class="text-7xl font-bold mb-6 text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+    Dallosh Analysis
+  </h1>
+  
+  <p class="text-3xl mb-3 text-white font-semibold drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">Analyse des Tweets SAV Free Mobile</p>
+  <p class="text-xl text-gray-100 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">Architecture & Stratégie IA</p>
+  
+  <div class="mt-16 text-sm bg-black/50 backdrop-blur-sm px-4 py-2 rounded text-white">Bloc CC2 - Examen Final</div>
+  
+  <div class="mt-12 grid grid-cols-3 gap-x-8 gap-y-4 text-sm bg-black/50 backdrop-blur-sm px-8 py-4 rounded-lg">
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Ivan Joel SOBGUI</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Armel Cyrille</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Pascal</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> OUMAR Ben Lol</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Mohammed SGHIOURI</div>
+    <div class="flex items-center gap-2 text-white"><carbon-user-avatar-filled class="text-blue-300"/> Nagui</div>
+  </div>
+</div>
 
 <div class="abs-br m-6 flex gap-2">
   <a href="https://github.com/sobgui/dallosh_analysis" target="_blank" alt="GitHub"
     class="text-xl slidev-icon-btn opacity-50 !border-none !hover:text-white">
     <carbon-logo-github />
   </a>
-</div>
-
-<div class="mt-12">
-  <span class="text-xl text-gray-400">Bloc CC2 - Analyse, Architecture & Stratégie</span>
-</div>
-
-<div class="mt-16 grid grid-cols-3 gap-y-8 gap-x-12 text-lg px-20">
-  <div class="flex items-center gap-3"><carbon-user-avatar-filled class="text-blue-500"/> Ivan Joel SOBGUI</div>
-  <div class="flex items-center gap-3"><carbon-user-avatar-filled class="text-blue-500"/> Armel Cyrille</div>
-  <div class="flex items-center gap-3"><carbon-user-avatar-filled class="text-blue-500"/> Pascal</div>
-  <div class="flex items-center gap-3"><carbon-user-avatar-filled class="text-blue-500"/> OUMAR Ben Lol</div>
-  <div class="flex items-center gap-3"><carbon-user-avatar-filled class="text-blue-500"/> Mohammed SGHIOURI</div>
-  <div class="flex items-center gap-3"><carbon-user-avatar-filled class="text-blue-500"/> Nagui</div>
 </div>
 
 ---
@@ -222,26 +233,59 @@ Organisation modulaire du code source.
 layout: default
 ---
 
-# Interface Utilisateur
+<div class="h-full flex flex-col">
+  <h1 class="mb-4">Interface - Dashboard Global</h1>
+  <p class="text-lg opacity-75 mb-6">Vue d'ensemble des KPIs et métriques en temps réel.</p>
+  <div class="flex-1 flex items-center justify-center">
+    <img src="/images/home_dashboard.png" class="max-h-full max-w-full object-contain rounded-lg shadow-xl border border-gray-200" />
+  </div>
+</div>
 
-Une expérience moderne et intuitive.
+---
+layout: default
+---
 
-<div class="grid grid-cols-2 gap-4 mt-4">
-  <div class="relative group h-48 flex justify-center items-center bg-gray-50 rounded overflow-hidden">
-    <img src="/images/home_dashboard.png" class="max-h-full max-w-full object-contain shadow-lg border border-gray-200 hover:scale-105 transition-transform duration-300" />
-    <div class="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 text-xs rounded">Dashboard Global</div>
+<div class="h-full flex flex-col">
+  <h1 class="mb-4">Interface - Suivi des Tâches</h1>
+  <p class="text-lg opacity-75 mb-6">Monitoring du pipeline de traitement et statuts.</p>
+  <div class="flex-1 flex items-center justify-center">
+    <img src="/images/admin_tasks_page.png" class="max-h-full max-w-full object-contain rounded-lg shadow-xl border border-gray-200" />
   </div>
-  <div class="relative group h-48 flex justify-center items-center bg-gray-50 rounded overflow-hidden">
-    <img src="/images/admin_tasks_page.png" class="max-h-full max-w-full object-contain shadow-lg border border-gray-200 hover:scale-105 transition-transform duration-300" />
-    <div class="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 text-xs rounded">Suivi des Tâches</div>
+</div>
+
+---
+layout: default
+---
+
+<div class="h-full flex flex-col">
+  <h1 class="mb-4">Interface - Analytics & KPIs</h1>
+  <p class="text-lg opacity-75 mb-6">Visualisation détaillée des données et tendances.</p>
+  <div class="flex-1 flex items-center justify-center">
+    <img src="/images/admin_analytics_page.png" class="max-h-full max-w-full object-contain rounded-lg shadow-xl border border-gray-200" />
   </div>
-  <div class="relative group h-48 flex justify-center items-center bg-gray-50 rounded overflow-hidden">
-    <img src="/images/admin_analytics_page.png" class="max-h-full max-w-full object-contain shadow-lg border border-gray-200 hover:scale-105 transition-transform duration-300" />
-    <div class="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 text-xs rounded">Analytics & KPIs</div>
+</div>
+
+---
+layout: default
+---
+
+<div class="h-full flex flex-col">
+  <h1 class="mb-4">Interface - Configuration IA</h1>
+  <p class="text-lg opacity-75 mb-6">Paramétrage des modèles et stratégies d'analyse.</p>
+  <div class="flex-1 flex items-center justify-center">
+    <img src="/images/admin_settings_tab_ai.png" class="max-h-full max-w-full object-contain rounded-lg shadow-xl border border-gray-200" />
   </div>
-  <div class="relative group h-48 flex justify-center items-center bg-gray-50 rounded overflow-hidden">
-    <img src="/images/admin_settings_tab_ai.png" class="max-h-full max-w-full object-contain shadow-lg border border-gray-200 hover:scale-105 transition-transform duration-300" />
-    <div class="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 text-xs rounded">Configuration IA</div>
+</div>
+
+---
+layout: default
+---
+
+<div class="h-full flex flex-col">
+  <h1 class="mb-4">Interface - Gestion des Utilisateurs</h1>
+  <p class="text-lg opacity-75 mb-6">Administration des comptes et contrôle d'accès (RBAC).</p>
+  <div class="flex-1 flex items-center justify-center">
+    <img src="/images/admin_users_page.png" class="max-h-full max-w-full object-contain rounded-lg shadow-xl border border-gray-200" />
   </div>
 </div>
 
@@ -327,42 +371,62 @@ Diagnostic global basé sur l'analyse des données.
 
 De quoi parlent les abonnés Free ?
 
-<div class="grid grid-cols-2 gap-12 mt-8">
+<div class="grid grid-cols-2 gap-8 mt-6">
 
-<div class="space-y-6">
-  <div v-click class="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    <div class="text-red-500 text-2xl mt-1"><carbon-warning-filled /></div>
+<div class="space-y-3">
+  <div v-click class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    <div class="text-red-500 text-xl mt-0.5"><carbon-warning-filled /></div>
     <div>
-      <h3 class="font-bold text-lg">Réseau / Fibre</h3>
-      <p class="opacity-80 text-sm">60% du volume négatif. Mots-clés : "Urgent", "Injoignable", "Coupure".</p>
+      <h3 class="font-bold text-base">Réseau / Fibre</h3>
+      <p class="opacity-80 text-xs mt-1">60% du volume négatif. Mots-clés : "Urgent", "Injoignable", "Coupure".</p>
     </div>
   </div>
   
-  <div v-click class="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    <div class="text-yellow-500 text-2xl mt-1"><carbon-document /></div>
+  <div v-click class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    <div class="text-yellow-500 text-xl mt-0.5"><carbon-document /></div>
     <div>
-      <h3 class="font-bold text-lg">Administratif / Facture</h3>
-      <p class="opacity-80 text-sm">Sentiment mitigé. Problèmes de compréhension ou délais.</p>
+      <h3 class="font-bold text-base">Administratif / Facture</h3>
+      <p class="opacity-80 text-xs mt-1">Sentiment mitigé. Problèmes de compréhension ou délais.</p>
     </div>
   </div>
   
-  <div v-click class="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-    <div class="text-green-500 text-2xl mt-1"><carbon-user-follow /></div>
+  <div v-click class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    <div class="text-green-500 text-xl mt-0.5"><carbon-user-follow /></div>
     <div>
-      <h3 class="font-bold text-lg">Nouveaux Abonnés</h3>
-      <p class="opacity-80 text-sm">Seul vecteur positif (Livraison rapide, Activation).</p>
+      <h3 class="font-bold text-base">Nouveaux Abonnés</h3>
+      <p class="opacity-80 text-xs mt-1">Seul vecteur positif (Livraison rapide, Activation).</p>
     </div>
   </div>
 </div>
 
-<div class="flex items-center justify-center">
-  ```mermaid
-  pie title Répartition des Topics
-    "Réseau/Tech" : 60
-    "Facturation" : 25
-    "Commercial" : 10
-    "Autre" : 5
-  ```
+<div class="flex flex-col justify-center">
+  <h3 class="text-center font-bold mb-4 text-sm opacity-75">Répartition des Topics</h3>
+  <div class="space-y-2">
+    <div class="flex items-center gap-2">
+      <div class="w-24 text-xs font-medium">Réseau/Tech</div>
+      <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+        <div class="bg-red-500 h-full flex items-center justify-end pr-2 text-white text-xs font-bold" style="width: 60%">60%</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-24 text-xs font-medium">Facturation</div>
+      <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+        <div class="bg-yellow-500 h-full flex items-center justify-end pr-2 text-white text-xs font-bold" style="width: 25%">25%</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-24 text-xs font-medium">Commercial</div>
+      <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+        <div class="bg-green-500 h-full flex items-center justify-end pr-2 text-white text-xs font-bold" style="width: 10%">10%</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-24 text-xs font-medium">Autre</div>
+      <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+        <div class="bg-gray-500 h-full flex items-center justify-end pr-2 text-white text-xs font-bold" style="width: 5%">5%</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 </div>
