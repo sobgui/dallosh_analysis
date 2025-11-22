@@ -1,0 +1,39 @@
+<mxGraphModel dx="1147" dy="774" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" background="#ffffff" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="dev_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Local Dev (Code + Push)" vertex="1">
+      <mxGeometry height="60" width="160" x="80" y="390" as="geometry" />
+    </mxCell>
+    <mxCell id="github_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="GitHub Repository" vertex="1">
+      <mxGeometry height="60" width="160" x="260" y="240" as="geometry" />
+    </mxCell>
+    <mxCell id="circleci_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="CircleCI (Run Tests &amp;amp; Build)&lt;br&gt;Monitor Logs" vertex="1">
+      <mxGeometry height="60" width="180" x="440" y="390" as="geometry" />
+    </mxCell>
+    <mxCell id="vps_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="VPS (SSH Deploy)" vertex="1">
+      <mxGeometry height="60" width="160" x="650" y="180" as="geometry" />
+    </mxCell>
+    <mxCell id="docker_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Docker Compose (Build &amp; Up)" vertex="1">
+      <mxGeometry height="60" width="180" x="830" y="370" as="geometry" />
+    </mxCell>
+    <mxCell id="traefik_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#5b9bd5;" value="Traefik (Load Balancer)" vertex="1">
+      <mxGeometry height="60" width="180" x="810" y="510" as="geometry" />
+    </mxCell>
+    <mxCell id="edge1" edge="1" parent="1" source="dev_box" style="edgeStyle=elbowEdgeStyle;endArrow=block;html=1;strokeColor=#000000;" target="github_box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="edge2" edge="1" parent="1" source="github_box" style="edgeStyle=elbowEdgeStyle;endArrow=block;html=1;strokeColor=#000000;" target="circleci_box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="edge3" edge="1" parent="1" source="circleci_box" style="edgeStyle=elbowEdgeStyle;endArrow=block;html=1;strokeColor=#000000;" target="vps_box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="edge4" edge="1" parent="1" source="vps_box" style="edgeStyle=elbowEdgeStyle;endArrow=block;html=1;strokeColor=#000000;" target="docker_box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="edge5" edge="1" parent="1" source="docker_box" style="edgeStyle=elbowEdgeStyle;endArrow=block;html=1;strokeColor=#000000;" target="traefik_box">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+  </root>
+</mxGraphModel>
