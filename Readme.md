@@ -246,11 +246,12 @@ Comprehensive technical documentation is available in the [`docs`](./docs/) dire
 ## Team
 
 - **Ivan Joel SOBGUI**
-- **Cyrile**
-- **Pascal**
-- **Ben Lol**
-- **Mohammed**
-- Nagui
+- **Armel Cyrille BOTI**
+- **Pascal Aurèle ELOUMOU MBOUDOU**
+- **Oumar BEN LOL**
+- **Mohammed SGHIOURI**
+- **Nagui DIVENGI KIBANGUDI BUNKEMBO**
+
 
 ## License
 
