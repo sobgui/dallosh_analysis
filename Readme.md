@@ -244,11 +244,13 @@ Comprehensive technical documentation is available in the [`docs`](./docs/) dire
 ## Team
 
 - **Ivan Joel SOBGUI**
-- **Cyrile**
-- **Pascal**
-- **Ben Lol**
-- **Mohammed**
+- **Armel Cyrille BOTI**
+- **Pascal Aurèle ELOUMOU MBOUDOU**
+- **Oumar BEN LOL**
+- **Mohammed SGHIOURI**
+- **Nagui DIVENGI KIBANGUDI BUNKEMBO**
 
+  
 ## License
 
 This project is licensed under the MIT License.
