@@ -246,7 +246,7 @@ Comprehensive technical documentation is available in the [`docs`](./docs/) dire
 ## Team
 
 - **Ivan Joel SOBGUI**
-- ** Armel Cyrille**
+- ** Armel Cyrille BOTI**
 - **Pascal**
 <<<<<<< HEAD
 - **OUMAR Ben Lol**
