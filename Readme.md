@@ -246,16 +246,12 @@ Comprehensive technical documentation is available in the [`docs`](./docs/) dire
 ## Team
 
 - **Ivan Joel SOBGUI**
-- ** Armel Cyrille BOTI**
-- **Pascal**
-<<<<<<< HEAD
+- **Armel Cyrille BOTI**
+- **ELOUMOU MBOUDOU Pascale Aurele**
 - **OUMAR Ben Lol**
 - **Mohammed SGHIOURI**
-=======
-- **Ben Lol**
-- **Mohammed**
-- Nagui
->>>>>>> main
+- **DIVENGI KIBANGUDI BUNKEMBO Nagui**
+
 
 ## License
 
